@@ -1,0 +1,184 @@
+.query-page {
+  max-width: 640px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.subtitle {
+  color: #5a6472;
+  margin-top: -0.5rem;
+}
+
+.query-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: var(--paper);
+  padding: 1.25rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.query-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.query-form input {
+  font-size: 1rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.query-form button {
+  align-self: flex-start;
+  padding: 0.5rem 1.25rem;
+  border: none;
+  border-radius: 6px;
+  background: #2f5fda;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.query-form button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.response-area {
+  margin-top: 1.5rem;
+}
+
+/* Each response_type gets its own class -- this IS the "visually distinct"
+   requirement from Story 6, not a styling afterthought: different label,
+   different icon, different color per outcome. */
+.banner {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  margin-bottom: 0.75rem;
+}
+
+.banner-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.banner-title {
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.banner-message {
+  margin: 0;
+}
+
+.banner-hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.banner-block {
+  background: #fde8e8;
+  border-color: #f3b4b4;
+  color: #7a1f1f;
+}
+
+.banner-exclusion {
+  background: #fdeeda;
+  border-color: #f0c48c;
+  color: #7a4a10;
+}
+
+.banner-not-found {
+  background: #eef1f5;
+  border-color: #ccd3dc;
+  color: #3a4350;
+}
+
+.banner-preventive {
+  background: #e6f7ee;
+  border-color: #9ddcb9;
+  color: #14532d;
+}
+
+.banner-prior-auth,
+.banner-future-term {
+  background: #fff7e0;
+  border-color: #f0d878;
+  color: #6b5300;
+}
+
+.banner-clarify {
+  background: #e8f0fe;
+  border-color: #a9c4f5;
+  color: #1a3d7c;
+}
+
+.banner-guardrail {
+  background: #fde8e8;
+  border-color: #e57373;
+  color: #7a1f1f;
+  font-weight: 600;
+}
+
+.candidate-list {
+  margin: 0.4rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.cost-panel {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+}
+
+.breakdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.breakdown-table th {
+  text-align: left;
+  font-weight: 500;
+  color: #4a5261;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.breakdown-table td {
+  text-align: right;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+.row-highlight th,
+.row-highlight td {
+  color: #b8860b;
+  font-weight: 600;
+}
+
+.row-total th,
+.row-total td {
+  font-weight: 700;
+  font-size: 1.1rem;
+  border-bottom: none;
+  padding-top: 0.6rem;
+}
+
+.audit-ref {
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  color: #8a929e;
+}

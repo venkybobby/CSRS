@@ -1,0 +1,40 @@
+[
+  {
+    "plan_id": "MER-SLV-2026",
+    "display_name": "Meridian Silver 2026",
+    "deductible_individual": "1500.00",
+    "deductible_family": "999999.00",
+    "coinsurance_pct": "0.20",
+    "oop_max_individual": "4000.00",
+    "oop_max_family": "999999.00",
+    "_comment_family_fields": "Silver/Gold family-tier deductible/OOP are not stated in the source spec (only Bronze's are). No Silver/Gold member in the spec is FAMILY tier, so these are unused placeholders, not real Meridian figures -- do not use for a real family-tier Silver/Gold quote without getting the real numbers from Plan Ops.",
+    "preventive_covered_100pct_codes": ["45380"],
+    "prior_auth_required_codes": ["70551", "72148"],
+    "excluded_codes": []
+  },
+  {
+    "plan_id": "MER-GLD-2026",
+    "display_name": "Meridian Gold 2026",
+    "deductible_individual": "500.00",
+    "deductible_family": "999999.00",
+    "coinsurance_pct": "0.10",
+    "oop_max_individual": "2500.00",
+    "oop_max_family": "999999.00",
+    "_comment_family_fields": "See Silver's note -- same caveat applies to Gold.",
+    "preventive_covered_100pct_codes": ["45380"],
+    "prior_auth_required_codes": [],
+    "excluded_codes": []
+  },
+  {
+    "plan_id": "MER-BRZ-2026",
+    "display_name": "Meridian Bronze 2026",
+    "deductible_individual": "3000.00",
+    "deductible_family": "6000.00",
+    "coinsurance_pct": "0.30",
+    "oop_max_individual": "6500.00",
+    "oop_max_family": "13000.00",
+    "preventive_covered_100pct_codes": ["45380"],
+    "prior_auth_required_codes": ["70551", "72148", "73721"],
+    "excluded_codes": ["S8092"]
+  }
+]

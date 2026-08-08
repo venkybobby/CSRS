@@ -1,0 +1,74 @@
+[
+  {
+    "member_id": "M1001",
+    "ind_ded_met": "0.00",
+    "ind_oop_met": "0.00",
+    "fam_ded_met": "0.00",
+    "fam_oop_met": "0.00",
+    "_source": "Story 3 edge case, exact: 'deductible_met=$0'. ind_oop_met is not spec-stated; assumed $0, consistent with a member who has made no claims yet."
+  },
+  {
+    "member_id": "M1002",
+    "ind_ded_met": "1200.00",
+    "ind_oop_met": "1200.00",
+    "fam_ded_met": "0.00",
+    "fam_oop_met": "0.00",
+    "_source": "Demo Script #1, exact."
+  },
+  {
+    "member_id": "M1003",
+    "ind_ded_met": "500.00",
+    "ind_oop_met": "1100.00",
+    "fam_ded_met": "0.00",
+    "fam_oop_met": "0.00",
+    "_source": "Story 3 worked example, exact."
+  },
+  {
+    "member_id": "M1004",
+    "ind_ded_met": "3000.00",
+    "ind_oop_met": "6350.00",
+    "fam_ded_met": "0.00",
+    "fam_oop_met": "0.00",
+    "_source": "ind_oop_met is Demo Script #2, exact. ind_ded_met is NOT spec-stated for M1004; assumed fully met ($3,000, Bronze's deductible_individual) as documented in tests/unit/test_calculator_individual.py::test_m1004_oop_max_binding_caps_regardless_of_procedure_cost -- consistent with a member whose OOP accumulator is already near its max."
+  },
+  {
+    "member_id": "M1005",
+    "ind_ded_met": "0.00",
+    "ind_oop_met": "0.00",
+    "fam_ded_met": "0.00",
+    "fam_oop_met": "0.00",
+    "_source": "TERMED -- calculator never runs for this member regardless of accumulator values (Story 1)."
+  },
+  {
+    "member_id": "M1006",
+    "ind_ded_met": "3000.00",
+    "ind_oop_met": "3400.00",
+    "fam_ded_met": "0.00",
+    "fam_oop_met": "4500.00",
+    "_source": "Story 5 worked example, exact. fam_ded_met is not spec-stated for M1006; set to $0 to make explicit that the individual clause alone is what triggers in_coinsurance for this member (see schema note on per-row family-accumulator snapshots)."
+  },
+  {
+    "member_id": "M1007",
+    "ind_ded_met": "400.00",
+    "ind_oop_met": "400.00",
+    "fam_ded_met": "6000.00",
+    "fam_oop_met": "6200.00",
+    "_source": "Story 5 worked example, exact. Note fam_oop_met ($6,200) differs from M1006's ($4,500) despite being 'same family, same plan' per the source doc -- this is the spec's own stated numbers, not a data-entry error introduced here. The schema stores fam_ded_met/fam_oop_met per member row rather than in a separate shared-family table specifically to accommodate this: in a real system, per-member cached snapshots of a family aggregate can transiently disagree until reconciled (e.g. one member's row reflects a more recent claim than the other's). Do not silently overwrite one to match the other."
+  },
+  {
+    "member_id": "M1008",
+    "ind_ded_met": "0.00",
+    "ind_oop_met": "0.00",
+    "fam_ded_met": "0.00",
+    "fam_oop_met": "0.00",
+    "_source": "Not spec-stated; this member exists only to exercise the mid-year no-proration assumption, so a fresh/no-claims accumulator state is the reasonable default."
+  },
+  {
+    "member_id": "M1010",
+    "ind_ded_met": "0.00",
+    "ind_oop_met": "0.00",
+    "fam_ded_met": "0.00",
+    "fam_oop_met": "0.00",
+    "_source": "Not spec-stated; this member exists only to exercise the future-coverage-end warning, so a fresh/no-claims accumulator state is the reasonable default."
+  }
+]

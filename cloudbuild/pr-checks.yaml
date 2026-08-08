@@ -1,0 +1,108 @@
+# PR gate (plan §6.3): lint + type-check + unit tests + eval-suite (against
+# an ephemeral Postgres) + container builds. A PR that fails any step here
+# is blocked from merge -- this is the CI half; cloudbuild/deploy.yaml is
+# the CD half that runs after merge.
+#
+# Trigger config (not expressed in this file): a Cloud Build trigger watching
+# pull_request events on the repo, pointing at this file, running in
+# csrsupport-dev (or a dedicated csrsupport-ci project) -- never against a
+# real dev/staging/prod database.
+
+steps:
+  - id: install-deps
+    name: python:3.12-slim
+    entrypoint: bash
+    args:
+      - -c
+      - pip install --no-cache-dir -r requirements-dev.txt
+
+  - id: lint
+    name: python:3.12-slim
+    entrypoint: bash
+    args:
+      - -c
+      - pip install --no-cache-dir -r requirements-dev.txt && ruff check agent bff shared tests evals
+
+  - id: typecheck
+    name: python:3.12-slim
+    entrypoint: bash
+    args:
+      - -c
+      - >
+        pip install --no-cache-dir -r requirements-dev.txt &&
+        mypy agent/csr_agent bff/app shared --ignore-missing-imports
+
+  - id: unit-tests
+    name: python:3.12-slim
+    entrypoint: bash
+    args:
+      - -c
+      - pip install --no-cache-dir -r requirements-dev.txt && pytest tests/unit -v
+
+  # Ephemeral Postgres for integration tests + the deterministic eval mode --
+  # a Cloud Build network service, torn down with the build, never a
+  # persistent instance.
+  - id: start-test-postgres
+    name: gcr.io/cloud-builders/docker
+    args:
+      - run
+      - -d
+      - --name=test-postgres
+      - --network=cloudbuild
+      - -e
+      - POSTGRES_PASSWORD=test
+      - -e
+      - POSTGRES_DB=csrsupport_test
+      - postgres:16
+
+  - id: integration-tests
+    name: python:3.12-slim
+    entrypoint: bash
+    args:
+      - -c
+      - >
+        pip install --no-cache-dir -r requirements-dev.txt &&
+        sleep 5 &&
+        TEST_DATABASE_URL=postgresql+psycopg2://postgres:test@test-postgres:5432/csrsupport_test
+        pytest tests/integration -v
+    env:
+      - "TEST_DATABASE_URL=postgresql+psycopg2://postgres:test@test-postgres:5432/csrsupport_test"
+
+  - id: eval-suite-deterministic
+    name: python:3.12-slim
+    entrypoint: bash
+    args:
+      - -c
+      - >
+        pip install --no-cache-dir -r requirements-dev.txt &&
+        DATABASE_URL=postgresql+psycopg2://postgres:test@test-postgres:5432/csrsupport_test
+        python db/seed/seed.py &&
+        DATABASE_URL=postgresql+psycopg2://postgres:test@test-postgres:5432/csrsupport_test
+        python evals/run_eval.py --mode deterministic --env pr-${_PR_NUMBER}
+
+  - id: build-bff
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - bff/Dockerfile
+      - -t
+      - "${_ARTIFACT_REGISTRY}/bff:pr-${_PR_NUMBER}"
+      - "."
+
+  - id: build-frontend
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - frontend/Dockerfile
+      - -t
+      - "${_ARTIFACT_REGISTRY}/frontend:pr-${_PR_NUMBER}"
+      - "frontend/"
+
+substitutions:
+  _PR_NUMBER: "local"
+  _ARTIFACT_REGISTRY: "us-central1-docker.pkg.dev/csrsupport-dev/csrsupport"
+
+options:
+  logging: CLOUD_LOGGING_ONLY

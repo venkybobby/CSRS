@@ -1,0 +1,123 @@
+# Deploy pipeline (plan §6.3), parameterized by _ENVIRONMENT so the same
+# build definition runs unchanged across dev/staging/prod. Config/secrets
+# come from substitution variables + Secret Manager references (per-trigger
+# config), never hardcoded here.
+#
+# Promotion/approval model: three separate Cloud Build triggers reference
+# this one file --
+#   csrsupport-deploy-dev:      auto-runs on push to main, _ENVIRONMENT=dev
+#   csrsupport-deploy-staging:  manual invocation only (the "approval gate"
+#                                for this MVP1 setup is that nobody but an
+#                                authorized approver can invoke it -- see
+#                                the trigger's IAM bindings)
+#   csrsupport-deploy-prod:     manual invocation only, same pattern
+# A Cloud Deploy delivery pipeline with native approval stages is the more
+# sophisticated version of this if manual-trigger-as-approval-gate proves
+# too coarse; not needed for MVP1 scale.
+
+steps:
+  - id: build-bff
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - bff/Dockerfile
+      - -t
+      - "${_ARTIFACT_REGISTRY}/bff:${SHORT_SHA}"
+      - "."
+
+  - id: build-frontend
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - frontend/Dockerfile
+      - -t
+      - "${_ARTIFACT_REGISTRY}/frontend:${SHORT_SHA}"
+      - "frontend/"
+
+  - id: push-bff
+    name: gcr.io/cloud-builders/docker
+    args: ["push", "${_ARTIFACT_REGISTRY}/bff:${SHORT_SHA}"]
+
+  - id: push-frontend
+    name: gcr.io/cloud-builders/docker
+    args: ["push", "${_ARTIFACT_REGISTRY}/frontend:${SHORT_SHA}"]
+
+  - id: run-db-migrations
+    name: python:3.12-slim
+    entrypoint: bash
+    args:
+      - -c
+      - >
+        pip install --no-cache-dir sqlalchemy psycopg2-binary &&
+        python -c "
+        from sqlalchemy import create_engine, text
+        engine = create_engine('${_DATABASE_URL}')
+        with engine.begin() as conn:
+            conn.execute(text(open('db/migrations/0001_init_schema.sql').read()))
+        " || echo 'Migration already applied or no-op -- review manually if this was unexpected'
+
+  - id: deploy-agent-engine
+    name: python:3.12-slim
+    entrypoint: bash
+    args:
+      - -c
+      - >
+        pip install --no-cache-dir -r agent/requirements.txt google-cloud-aiplatform[adk] &&
+        python agent/csr_agent/deploy/deploy_agent_engine.py
+    env:
+      - "GOOGLE_CLOUD_PROJECT=${_PROJECT_ID}"
+      - "GOOGLE_CLOUD_LOCATION=${_REGION}"
+      - "STAGING_BUCKET=${_STAGING_BUCKET}"
+      - "AGENT_ENGINE_SERVICE_ACCOUNT=${_AGENT_ENGINE_SA}"
+      - "CLOUD_SQL_INSTANCE_CONNECTION_NAME=${_CLOUD_SQL_INSTANCE}"
+      - "CLOUD_SQL_IAM_USER=${_AGENT_ENGINE_SA}"
+
+  - id: deploy-bff
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - "csrsupport-bff-${_ENVIRONMENT}"
+      - "--image=${_ARTIFACT_REGISTRY}/bff:${SHORT_SHA}"
+      - "--project=${_PROJECT_ID}"
+      - "--region=${_REGION}"
+
+  - id: deploy-frontend
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - "csrsupport-frontend-${_ENVIRONMENT}"
+      - "--image=${_ARTIFACT_REGISTRY}/frontend:${SHORT_SHA}"
+      - "--project=${_PROJECT_ID}"
+      - "--region=${_REGION}"
+
+  - id: eval-suite-post-deploy
+    name: python:3.12-slim
+    entrypoint: bash
+    args:
+      - -c
+      - >
+        pip install --no-cache-dir -r requirements-dev.txt &&
+        python evals/run_eval.py --mode both --env ${_ENVIRONMENT}
+    env:
+      - "AGENT_ENGINE_RESOURCE_NAME=${_AGENT_ENGINE_RESOURCE_NAME}"
+      - "DATABASE_URL=${_DATABASE_URL}"
+
+substitutions:
+  _ENVIRONMENT: "dev"
+  _PROJECT_ID: "csrsupport-dev"
+  _REGION: "us-central1"
+  _ARTIFACT_REGISTRY: "us-central1-docker.pkg.dev/csrsupport-dev/csrsupport"
+  _STAGING_BUCKET: "gs://csrsupport-dev-agent-engine-staging"
+  _AGENT_ENGINE_SA: "sa-agent-engine-dev@csrsupport-dev.iam.gserviceaccount.com"
+  _CLOUD_SQL_INSTANCE: "csrsupport-dev:us-central1:csrsupport-dev"
+  _AGENT_ENGINE_RESOURCE_NAME: "" # set from deploy-agent-engine's output; wire via a prior build's output or Secret Manager in practice
+  _DATABASE_URL: "" # Secret Manager reference in the real trigger config, never a literal value here
+
+options:
+  logging: CLOUD_LOGGING_ONLY

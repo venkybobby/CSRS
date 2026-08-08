@@ -1,0 +1,20 @@
+# Copy to terraform.tfvars (gitignored) and fill in. Never commit real values.
+
+support_email    = "platform-team@meridianhealthplans.com"
+csr_group_email  = "csr-agents@meridianhealthplans.com"
+access_policy_id = "123456789012" # org-level Access Context Manager policy ID
+vpc_network_id   = "projects/csrsupport-dev/global/networks/csrsupport-vpc"
+vpc_connector_id = "projects/csrsupport-dev/locations/us-central1/connectors/csrsupport-connector"
+
+# Built by cloudbuild/deploy.yaml and pushed to Artifact Registry before
+# `terraform apply` runs for this environment.
+bff_image      = "us-central1-docker.pkg.dev/csrsupport-dev/csrsupport/bff:latest"
+frontend_image = "us-central1-docker.pkg.dev/csrsupport-dev/csrsupport/frontend:latest"
+
+# Left blank on first apply -- IAP audience and Agent Engine resource name
+# both depend on resources this same config creates. Set these and re-apply
+# once: (1) `terraform output` gives you the IAP backend service ID to
+# derive the audience from, and (2) deploy_agent_engine.py has run and
+# printed its resource name.
+iap_expected_audience     = ""
+agent_engine_resource_name = ""

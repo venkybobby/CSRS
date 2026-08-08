@@ -1,0 +1,106 @@
+[
+  {
+    "member_id": "M1001",
+    "first_name": "Alice",
+    "last_name": "Trevino",
+    "plan_id": "MER-SLV-2026",
+    "tier": "INDIVIDUAL",
+    "family_id": null,
+    "status": "ACTIVE",
+    "coverage_start": "2026-01-01",
+    "coverage_end": null,
+    "_note": "coverage_start is not spec-stated for this member; 2026-01-01 (plan-year start) is a reasonable default."
+  },
+  {
+    "member_id": "M1002",
+    "first_name": "Robert",
+    "last_name": "Chen",
+    "plan_id": "MER-SLV-2026",
+    "tier": "INDIVIDUAL",
+    "family_id": null,
+    "status": "ACTIVE",
+    "coverage_start": "2026-01-01",
+    "coverage_end": null
+  },
+  {
+    "member_id": "M1003",
+    "first_name": "Dorothy",
+    "last_name": "Okafor",
+    "plan_id": "MER-GLD-2026",
+    "tier": "INDIVIDUAL",
+    "family_id": null,
+    "status": "ACTIVE",
+    "coverage_start": "2026-01-01",
+    "coverage_end": null
+  },
+  {
+    "member_id": "M1004",
+    "first_name": "James",
+    "last_name": "Whitaker",
+    "plan_id": "MER-BRZ-2026",
+    "tier": "INDIVIDUAL",
+    "family_id": null,
+    "status": "ACTIVE",
+    "coverage_start": "2026-01-01",
+    "coverage_end": null
+  },
+  {
+    "member_id": "M1005",
+    "first_name": "Priya",
+    "last_name": "Raman",
+    "plan_id": "MER-SLV-2026",
+    "tier": "INDIVIDUAL",
+    "family_id": null,
+    "status": "TERMED",
+    "coverage_start": "2026-01-01",
+    "coverage_end": "2026-05-31",
+    "_note": "Story 1 edge case, exact: 'status = termed, coverage_end = 2026-05-31'. plan_id is not stated (doesn't matter -- termed check blocks before any plan/cost lookup)."
+  },
+  {
+    "member_id": "M1006",
+    "first_name": "Miguel",
+    "last_name": "Santos",
+    "plan_id": "MER-BRZ-2026",
+    "tier": "FAMILY",
+    "family_id": "SANTOS-FAM-01",
+    "status": "ACTIVE",
+    "coverage_start": "2026-01-01",
+    "coverage_end": null
+  },
+  {
+    "member_id": "M1007",
+    "first_name": "Hannah",
+    "last_name": "Santos",
+    "plan_id": "MER-BRZ-2026",
+    "tier": "FAMILY",
+    "family_id": "SANTOS-FAM-01",
+    "status": "ACTIVE",
+    "coverage_start": "2026-01-01",
+    "coverage_end": null,
+    "_note": "Story 5: 'M1007 -- same family, same plan' as M1006."
+  },
+  {
+    "member_id": "M1008",
+    "first_name": "Sample",
+    "last_name": "MidYearMember",
+    "plan_id": "MER-SLV-2026",
+    "tier": "INDIVIDUAL",
+    "family_id": null,
+    "status": "ACTIVE",
+    "coverage_start": "2026-07-01",
+    "coverage_end": null,
+    "_note": "Demo-scope assumption case, exact: 'Mid-year coverage start (e.g., M1008, coverage_start 2026-07-01) receives no deductible proration.' Name/plan are not stated -- this member exists to exercise the no-proration assumption, not a specific cost scenario."
+  },
+  {
+    "member_id": "M1010",
+    "first_name": "George",
+    "last_name": "Ellery",
+    "plan_id": "MER-SLV-2026",
+    "tier": "INDIVIDUAL",
+    "family_id": null,
+    "status": "ACTIVE",
+    "coverage_start": "2026-01-01",
+    "coverage_end": "2026-08-31",
+    "_note": "Story 1 edge case, exact: 'status=active, coverage_end=2026-08-31, terms 2026-08-31' -- future-term warning case. plan_id not stated, defaulted to Silver."
+  }
+]

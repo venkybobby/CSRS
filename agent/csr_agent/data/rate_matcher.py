@@ -1,0 +1,155 @@
+"""Procedure resolution: plain-English text -> CPT code, via RapidFuzz
+matching against the rate sheet. This is the deterministic engine behind the
+resolve_procedure tool (Story 2) -- match thresholds are fixed, code-owned
+constants, never an LLM judgment call.
+
+match_procedure() takes an optional `catalog` argument specifically so it is
+unit-testable with an in-memory fixture and never needs a live database in
+tests -- the DB-backed default (_load_catalog_from_db) is only exercised by
+integration tests and the running agent.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from decimal import Decimal
+
+from rapidfuzz import fuzz, process
+from sqlalchemy import text
+
+from csr_agent.calculator.types import RateInfo
+from csr_agent.data.db import get_engine
+from csr_agent.tools.models import ProcedureCandidate, ProcedureMatchResult
+
+# Fixed thresholds (RapidFuzz token_sort_ratio, 0-100). Code-owned, not model
+# judgment -- see plan §2.1.
+MATCH_THRESHOLD = 90
+CLARIFY_THRESHOLD = 60
+MAX_CLARIFY_CANDIDATES = 4
+
+# Procedures that are ALWAYS routed to clarification regardless of fuzzy
+# score, because a single common-language term maps to genuinely different
+# billing codes with different costs (Story 2: preventive CPT 45380 vs
+# diagnostic CPT 45378 colonoscopy). Matched as a substring of the
+# lowercased, stripped query.
+AMBIGUOUS_ALWAYS = ("colonoscopy",)
+
+
+@dataclass(frozen=True)
+class RateSheetRow:
+    cpt_code: str
+    common_name: str
+    search_aliases: tuple[str, ...]
+    negotiated_rate: Decimal | None
+
+
+def _load_catalog_from_db() -> list[RateSheetRow]:
+    engine = get_engine()
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text("SELECT cpt_code, common_name, search_aliases, negotiated_rate FROM rate_sheet")
+        ).mappings().all()
+    return [
+        RateSheetRow(
+            cpt_code=r["cpt_code"],
+            common_name=r["common_name"],
+            search_aliases=tuple(r["search_aliases"]),
+            negotiated_rate=Decimal(r["negotiated_rate"]) if r["negotiated_rate"] is not None else None,
+        )
+        for r in rows
+    ]
+
+
+def _candidates_for_query(catalog: list[RateSheetRow], terms: tuple[str, ...]) -> list[ProcedureCandidate]:
+    out = []
+    for row in catalog:
+        haystacks = (row.common_name.lower(), *[a.lower() for a in row.search_aliases])
+        if any(any(term in h for term in terms) for h in haystacks):
+            out.append(ProcedureCandidate(cpt_code=row.cpt_code, common_name=row.common_name, score=100.0))
+    return out
+
+
+def match_procedure(query: str, catalog: list[RateSheetRow] | None = None) -> ProcedureMatchResult:
+    if catalog is None:
+        catalog = _load_catalog_from_db()
+
+    normalized = query.strip().lower()
+
+    forced = next((term for term in AMBIGUOUS_ALWAYS if term in normalized), None)
+    if forced is not None:
+        candidates = _candidates_for_query(catalog, (forced,))
+        return ProcedureMatchResult(
+            query=query,
+            status="NEEDS_CLARIFICATION",
+            candidates=candidates,
+            clarifying_question="Is this a preventive (screening) or diagnostic colonoscopy?",
+        )
+
+    # Flatten (row, searchable text) pairs -- one row can be reached by
+    # several aliases, so we track the best-scoring row rather than the
+    # best-scoring string.
+    choices: dict[str, RateSheetRow] = {}
+    for row in catalog:
+        for text_ in (row.common_name, *row.search_aliases):
+            choices[text_.lower()] = row
+
+    if not choices:
+        return ProcedureMatchResult(query=query, status="NOT_ON_FILE")
+
+    match = process.extractOne(normalized, choices.keys(), scorer=fuzz.token_sort_ratio)
+    if match is None:
+        return ProcedureMatchResult(query=query, status="NOT_ON_FILE")
+
+    matched_text, score, _ = match
+    row = choices[matched_text]
+
+    if score >= MATCH_THRESHOLD:
+        return ProcedureMatchResult(
+            query=query,
+            status="MATCHED",
+            cpt_code=row.cpt_code,
+            common_name=row.common_name,
+            negotiated_rate=row.negotiated_rate,
+        )
+
+    if score >= CLARIFY_THRESHOLD:
+        top = process.extract(
+            normalized, choices.keys(), scorer=fuzz.token_sort_ratio, limit=MAX_CLARIFY_CANDIDATES
+        )
+        seen_cpt: set[str] = set()
+        candidates = []
+        for text_, s, _ in top:
+            r = choices[text_]
+            if r.cpt_code in seen_cpt:
+                continue
+            seen_cpt.add(r.cpt_code)
+            candidates.append(ProcedureCandidate(cpt_code=r.cpt_code, common_name=r.common_name, score=s))
+        return ProcedureMatchResult(
+            query=query,
+            status="NEEDS_CLARIFICATION",
+            candidates=candidates,
+            clarifying_question=(
+                f"I found a few possible matches for '{query}' -- "
+                "could you confirm which procedure this is?"
+            ),
+        )
+
+    return ProcedureMatchResult(query=query, status="NOT_ON_FILE")
+
+
+def get_rate(cpt_code: str) -> RateInfo | None:
+    """Direct lookup by an already-resolved CPT code (used by the pipeline
+    after resolve_procedure has matched, never by free-text). Returns None
+    both when no row exists AND when the row exists but negotiated_rate is
+    NULL (see 0001_init_schema.sql -- e.g. CPT S8092, which must be
+    matchable/nameable for the exclusion check to fire, but has no payable
+    rate)."""
+    engine = get_engine()
+    with engine.connect() as conn:
+        row = conn.execute(
+            text("SELECT negotiated_rate FROM rate_sheet WHERE cpt_code = :cpt_code"),
+            {"cpt_code": cpt_code},
+        ).mappings().first()
+
+    if row is None or row["negotiated_rate"] is None:
+        return None
+    return RateInfo(cpt_code=cpt_code, negotiated_rate=Decimal(row["negotiated_rate"]))

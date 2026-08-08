@@ -1,0 +1,87 @@
+# The 5 demo-script cases from meridian_csr_estimator_MVP1_stories.md,
+# encoded as machine-checkable expectations. This is the CI/CD deploy gate
+# (plan §6.3/§7): a PR or deploy that breaks tool-routing or calculation
+# behavior fails here before reaching staging/prod.
+#
+# Each case is checked in two independent modes (see run_eval.py):
+#   deterministic  -- calls resolve_procedure + estimate_member_cost
+#                      directly (no live agent needed; runs on every PR)
+#   live           -- sends `question` through a deployed/local agent and
+#                      additionally verifies tool-call ORDER from the ADK
+#                      session trace, and that zero GUARDRAIL_VIOLATION
+#                      events fire on these known-good cases (post-deploy,
+#                      per plan §6.3's dev/staging/prod pipeline stages)
+
+cases:
+  - id: demo_1_partial_deductible_and_coinsurance
+    question: "M1002 wants an MRI on his knee, what does he owe?"
+    member_id: "M1002"
+    expected_cpt_code: "73721"
+    expected_response_type: "STANDARD_COST"
+    expected_tool_sequence: [check_eligibility, resolve_procedure, estimate_member_cost]
+    expected_fields:
+      breakdown.deductible_remaining: "300.00"
+      breakdown.applied_to_deductible: "300.00"
+      breakdown.balance_after_deductible: "850.00"
+      breakdown.coinsurance_amount: "170.00"
+      breakdown.member_cost: "470.00"
+      breakdown.oop_cap_triggered: false
+      breakdown.prior_auth_required: false
+
+  - id: demo_2_oop_max_binding
+    question: "What's James Whitaker M1004 looking at for knee surgery?"
+    member_id: "M1004"
+    expected_cpt_code: "29881"
+    expected_response_type: "STANDARD_COST"
+    expected_tool_sequence: [check_eligibility, resolve_procedure, estimate_member_cost]
+    expected_fields:
+      breakdown.negotiated_rate: "6200.00"
+      breakdown.oop_remaining: "150.00"
+      breakdown.member_cost: "150.00"
+      breakdown.oop_cap_triggered: true
+
+  - id: demo_3a_embedded_family_m1006
+    question: "Same question for M1007 and M1006 -- knee surgery"
+    member_id: "M1006"
+    expected_cpt_code: "29881"
+    expected_response_type: "STANDARD_COST"
+    expected_tool_sequence: [check_eligibility, resolve_procedure, estimate_member_cost]
+    expected_fields:
+      breakdown.member_cost: "1860.00"
+      breakdown.oop_remaining: "3100.00"
+      breakdown.triggering_threshold: "INDIVIDUAL"
+
+  - id: demo_3b_embedded_family_m1007
+    question: "Same question for M1007 and M1006 -- knee surgery"
+    member_id: "M1007"
+    expected_cpt_code: "29881"
+    expected_response_type: "STANDARD_COST"
+    expected_tool_sequence: [check_eligibility, resolve_procedure, estimate_member_cost]
+    expected_fields:
+      breakdown.member_cost: "1860.00"
+      breakdown.oop_remaining: "6100.00"
+      breakdown.triggering_threshold: "FAMILY"
+    # The spec's own acceptance note (Story 5): "If it returns identical
+    # numbers [as demo_3a], the per-member accumulator lookup is wrong" --
+    # here that means oop_remaining/triggering_threshold, NOT member_cost,
+    # which is legitimately equal in this specific case. See
+    # tests/unit/test_calculator_family.py for the full reconciliation of
+    # this with the spec's own worked example.
+    must_differ_from: demo_3a_embedded_family_m1006
+    must_differ_fields: [breakdown.oop_remaining, breakdown.triggering_threshold]
+
+  - id: demo_4_termed_member_block
+    question: "M1005 -- anything, what do they owe?"
+    member_id: "M1005"
+    expected_cpt_code: null  # eligibility check blocks before any procedure lookup
+    expected_response_type: "TERMED_BLOCK"
+    expected_tool_sequence: [check_eligibility]
+    expected_message_contains: ["Priya Raman", "2026-05-31", "not eligible"]
+
+  - id: demo_5_honest_miss
+    question: "Cardiac CT for M1003"
+    member_id: "M1003"
+    expected_cpt_code: null  # never on file -- resolve_procedure must return NOT_ON_FILE
+    expected_response_type: "RATE_NOT_FOUND"
+    expected_tool_sequence: [check_eligibility, resolve_procedure]
+    expected_message_contains: ["don't have a negotiated rate", "Do not estimate"]

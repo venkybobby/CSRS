@@ -1,0 +1,13 @@
+:root {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+  --ink: #1a1f26;
+  --paper: #ffffff;
+  --border: #d7dce2;
+}
+
+body {
+  margin: 0;
+  background: #f5f7fa;
+  color: var(--ink);
+}

@@ -1,0 +1,107 @@
+[
+  {
+    "cpt_code": "70551",
+    "common_name": "MRI Brain",
+    "search_aliases": ["mri brain", "brain mri", "mri of the brain", "head mri"],
+    "negotiated_rate": "1400.00",
+    "_source": "Story 4 prior-auth table names this CPT; rate is constructed (not spec-stated) -- no worked cost example uses it."
+  },
+  {
+    "cpt_code": "72148",
+    "common_name": "MRI Low Back",
+    "search_aliases": ["mri low back", "lower back mri", "mri lumbar spine", "back mri"],
+    "negotiated_rate": "1300.00",
+    "_source": "Story 4 prior-auth table names this CPT; rate is constructed (not spec-stated)."
+  },
+  {
+    "cpt_code": "73721",
+    "common_name": "MRI Knee",
+    "search_aliases": ["mri on his knee", "mri on her knee", "knee mri", "mri knee"],
+    "negotiated_rate": "1150.00",
+    "_source": "Derived: Demo Script #1 -- deductible remaining $300 fully absorbed, balance $850 => rate = 300 + 850 = $1,150."
+  },
+  {
+    "cpt_code": "29881",
+    "common_name": "Knee Arthroscopy/Surgery",
+    "search_aliases": ["knee surgery", "knee arthroscopy", "arthroscopic knee surgery"],
+    "negotiated_rate": "6200.00",
+    "_source": "Story 3 / Demo Script #2 & #3: 'rate $6,200' stated explicitly."
+  },
+  {
+    "cpt_code": "45380",
+    "common_name": "Colonoscopy, Preventive (Screening)",
+    "search_aliases": ["preventive colonoscopy", "screening colonoscopy", "colonoscopy screening"],
+    "negotiated_rate": "800.00",
+    "_source": "CPT stated explicitly (Story 2/7). Rate is constructed -- member cost is always $0 under the preventive short-circuit regardless of this value; it exists only because a rate_sheet row is required for resolve_procedure to MATCH."
+  },
+  {
+    "cpt_code": "45378",
+    "common_name": "Colonoscopy, Diagnostic",
+    "search_aliases": ["diagnostic colonoscopy", "colonoscopy diagnostic"],
+    "negotiated_rate": "1200.00",
+    "_source": "CPT stated explicitly (Story 2). Rate is constructed (not spec-stated)."
+  },
+  {
+    "cpt_code": "S8092",
+    "common_name": "Acupuncture",
+    "search_aliases": ["acupuncture", "acupuncture treatment"],
+    "negotiated_rate": null,
+    "_source": "Story 6. negotiated_rate intentionally NULL -- see schema comment in 0001_init_schema.sql: Bronze excludes it (exclusion check fires before any rate is needed), Silver/Gold are not excluded and correctly fall through to a real 'rate not on file' outcome."
+  },
+  {
+    "cpt_code": "99213",
+    "common_name": "Office Visit, Established Patient, Low Complexity",
+    "search_aliases": ["office visit", "follow up visit", "checkup"],
+    "negotiated_rate": "150.00",
+    "_source": "Constructed to complete the 15-procedure sheet; not individually specified in the source spec."
+  },
+  {
+    "cpt_code": "99214",
+    "common_name": "Office Visit, Established Patient, Moderate Complexity",
+    "search_aliases": ["office visit moderate", "extended office visit"],
+    "negotiated_rate": "220.00",
+    "_source": "Constructed to complete the 15-procedure sheet; not individually specified in the source spec."
+  },
+  {
+    "cpt_code": "80053",
+    "common_name": "Comprehensive Metabolic Panel",
+    "search_aliases": ["metabolic panel", "blood chemistry panel", "cmp"],
+    "negotiated_rate": "85.00",
+    "_source": "Constructed to complete the 15-procedure sheet; not individually specified in the source spec."
+  },
+  {
+    "cpt_code": "85025",
+    "common_name": "Complete Blood Count (CBC)",
+    "search_aliases": ["cbc", "complete blood count", "blood count"],
+    "negotiated_rate": "45.00",
+    "_source": "Constructed to complete the 15-procedure sheet; not individually specified in the source spec."
+  },
+  {
+    "cpt_code": "71046",
+    "common_name": "Chest X-Ray, 2 Views",
+    "search_aliases": ["chest xray", "chest x-ray", "chest x ray"],
+    "negotiated_rate": "180.00",
+    "_source": "Constructed to complete the 15-procedure sheet; not individually specified in the source spec."
+  },
+  {
+    "cpt_code": "93000",
+    "common_name": "Electrocardiogram (EKG)",
+    "search_aliases": ["ekg", "ecg", "electrocardiogram", "heart trace"],
+    "negotiated_rate": "120.00",
+    "_source": "Constructed to complete the 15-procedure sheet; not individually specified in the source spec."
+  },
+  {
+    "cpt_code": "76700",
+    "common_name": "Abdominal Ultrasound",
+    "search_aliases": ["abdominal ultrasound", "belly ultrasound", "abdomen ultrasound"],
+    "negotiated_rate": "450.00",
+    "_source": "Constructed to complete the 15-procedure sheet; not individually specified in the source spec."
+  },
+  {
+    "cpt_code": "20610",
+    "common_name": "Joint Injection, Major Joint",
+    "search_aliases": ["joint injection", "knee injection", "shoulder injection", "cortisone shot"],
+    "negotiated_rate": "275.00",
+    "_source": "Constructed to complete the 15-procedure sheet; not individually specified in the source spec."
+  }
+]
