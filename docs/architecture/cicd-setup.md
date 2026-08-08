@@ -38,6 +38,29 @@ gcloud services enable \
 ```
 Repeat per environment project.
 
+### 0.5. Grant the build execution identity storage access
+
+Projects created after Google's Cloud Build default-service-account change run builds as the
+**Compute Engine default service account** (`PROJECT_NUMBER-compute@developer.gserviceaccount.com`),
+not the legacy dedicated Cloud Build SA — and that account doesn't automatically have access to
+the auto-created `PROJECT_ID_cloudbuild` GCS bucket builds stage their source in. Skipping this
+doesn't fail at `gcloud services enable` time; it fails the first time you actually submit a
+build, with a `storage.objects.get` 403 on the `_cloudbuild` bucket. Grant it up front:
+
+```bash
+PROJECT_NUMBER=$(gcloud projects describe csrsupport-dev --format='value(projectNumber)')
+gcloud projects add-iam-policy-binding csrsupport-dev \
+    --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+    --role="roles/cloudbuild.builds.builder"
+```
+`roles/cloudbuild.builds.builder` is the role Google now recommends for whichever SA executes
+builds — it covers source-bucket read/write, log writing, and the other baseline build
+operations in one grant, rather than discovering each missing permission one 403 at a time.
+Repeat per environment project. (If §3's Terraform later creates a dedicated `sa-cicd-build`
+and you configure triggers to run *as* that SA instead of the default compute SA, this specific
+grant becomes moot for triggered builds — but ad hoc `gcloud builds submit` runs still use the
+default compute SA unless you pass `--service-account` explicitly, so keep it either way.)
+
 ## 1. One-time manual: connect GitHub to Cloud Build
 
 In the GCP Console: **Cloud Build → Repositories → Connect Repository → GitHub**, and follow
@@ -150,6 +173,7 @@ successful `csrsupport-deploy-dev` run. Break the cycle in this order:
 | Step | Mechanism |
 |---|---|
 | Enable APIs | manual (`gcloud services enable`, once) |
+| Grant build execution identity storage access | manual (`gcloud`, once, §0.5) |
 | GitHub App install | manual, browser OAuth (§1) |
 | GitHub PAT + Secret Manager | manual (§2) |
 | Cloud SQL, Cloud Run, Artifact Registry, IAM, Cloud Build triggers | `terraform apply` (§3) |
