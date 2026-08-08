@@ -26,6 +26,19 @@ POOL_SIZE = 2
 MAX_OVERFLOW = 1
 
 
+_GSA_SUFFIX = ".gserviceaccount.com"
+
+
+def _iam_db_username(raw: str) -> str:
+    """Cloud SQL IAM auth requires the DB username to be the service
+    account email with the .gserviceaccount.com suffix stripped -- doing
+    that here, once, means every caller (Terraform's google_sql_user,
+    deploy_agent_engine.py, cloudbuild/*.yaml, Terraform env_vars blocks)
+    can just pass the natural full service account email and not need to
+    remember this Cloud-SQL-specific quirk."""
+    return raw[: -len(_GSA_SUFFIX)] if raw.endswith(_GSA_SUFFIX) else raw
+
+
 def _cloud_sql_creator():
     from google.cloud.sql.connector import Connector, IPTypes
 
@@ -35,7 +48,7 @@ def _cloud_sql_creator():
         return connector.connect(
             os.environ["CLOUD_SQL_INSTANCE_CONNECTION_NAME"],
             "pg8000",
-            user=os.environ["CLOUD_SQL_IAM_USER"],
+            user=_iam_db_username(os.environ["CLOUD_SQL_IAM_USER"]),
             db=os.environ.get("CLOUD_SQL_DATABASE", "csrsupport"),
             enable_iam_auth=True,
             ip_type=IPTypes.PRIVATE,

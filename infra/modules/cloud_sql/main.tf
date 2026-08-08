@@ -27,6 +27,20 @@ variable "agent_engine_iam_member" {
   type        = string
 }
 
+variable "migrate_iam_member" {
+  description = <<-EOT
+    IAM DB user identity for the migration Cloud Run Job's service account,
+    e.g. sa-migrate@PROJECT.iam. Deliberately separate from
+    agent_engine_iam_member: the running application's DB identity is
+    SELECT/INSERT-only (plan §4 least-privilege), but schema migrations need
+    DDL rights -- those must not be the same principal. See
+    db/bootstrap_iam_grants.sql for the one-time manual grant step this
+    identity needs after creation (Terraform creates the IAM DB user, but
+    cannot itself GRANT it privileges -- see docs/architecture/cicd-setup.md).
+  EOT
+  type        = string
+}
+
 variable "tier" {
   type    = string
   default = "db-custom-2-8192" # 2 vCPU / 8GB -- MVP1 scale, not a sizing claim for real production load
@@ -72,10 +86,27 @@ resource "google_sql_database" "csrsupport" {
 # IAM DB user for the Agent Engine service account -- the ONLY principal
 # with database access (plan §4: sa-bff-run intentionally has no Cloud SQL
 # role at all).
+#
+# Cloud SQL requires the DB username for a CLOUD_IAM_SERVICE_ACCOUNT user to
+# be the service account email with ".gserviceaccount.com" stripped -- the
+# replace() calls here mean callers (this module's variables) can just pass
+# the natural full email, matching agent/csr_agent/data/db.py's
+# _iam_db_username() which applies the identical fix on the app side.
 resource "google_sql_user" "agent_engine" {
   project  = var.project_id
   instance = google_sql_database_instance.csrsupport.name
-  name     = var.agent_engine_iam_member
+  name     = replace(var.agent_engine_iam_member, ".gserviceaccount.com", "")
+  type     = "CLOUD_IAM_SERVICE_ACCOUNT"
+}
+
+# Separate, more-privileged IAM DB user for schema migrations only -- never
+# used by the running agent/BFF. See the migrate_iam_member variable above
+# and db/bootstrap_iam_grants.sql for why this can't just reuse
+# agent_engine's user.
+resource "google_sql_user" "migrate" {
+  project  = var.project_id
+  instance = google_sql_database_instance.csrsupport.name
+  name     = replace(var.migrate_iam_member, ".gserviceaccount.com", "")
   type     = "CLOUD_IAM_SERVICE_ACCOUNT"
 }
 

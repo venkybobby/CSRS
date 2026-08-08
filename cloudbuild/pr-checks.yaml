@@ -68,6 +68,13 @@ steps:
     env:
       - "TEST_DATABASE_URL=postgresql+psycopg2://postgres:test@test-postgres:5432/csrsupport_test"
 
+  # Explicitly applies the schema itself rather than relying on
+  # integration-tests having already created it in this shared container --
+  # that dependency existed silently before (TRUNCATE happened to succeed
+  # only because the prior step left tables behind) and would break
+  # confusingly on any step reordering. Self-sufficient now: run_migrations.py
+  # is idempotent (schema_migrations tracking table), so this is a no-op if
+  # integration-tests did already apply it.
   - id: eval-suite-deterministic
     name: python:3.12-slim
     entrypoint: bash
@@ -75,6 +82,8 @@ steps:
       - -c
       - >
         pip install --no-cache-dir -r requirements-dev.txt &&
+        DATABASE_URL=postgresql+psycopg2://postgres:test@test-postgres:5432/csrsupport_test
+        python db/migrations/run_migrations.py &&
         DATABASE_URL=postgresql+psycopg2://postgres:test@test-postgres:5432/csrsupport_test
         python db/seed/seed.py &&
         DATABASE_URL=postgresql+psycopg2://postgres:test@test-postgres:5432/csrsupport_test
@@ -99,6 +108,16 @@ steps:
       - -t
       - "${_ARTIFACT_REGISTRY}/frontend:pr-${_PR_NUMBER}"
       - "frontend/"
+
+  - id: build-migrate
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - db/migrations/Dockerfile
+      - -t
+      - "${_ARTIFACT_REGISTRY}/migrate:pr-${_PR_NUMBER}"
+      - "."
 
 substitutions:
   _PR_NUMBER: "local"

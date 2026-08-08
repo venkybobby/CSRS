@@ -64,7 +64,15 @@ def main() -> None:
         agent_engine=app,
         display_name=display_name,
         requirements=requirements,
-        extra_packages=[str(REPO_ROOT / "agent" / "csr_agent")],
+        # csr_agent.pipeline.estimate imports from shared.messages (and
+        # transitively nothing else from shared/ today, but keep the whole
+        # package together rather than risk this drifting out of sync again
+        # the way it did once already when shared/ was split out of
+        # agent/csr_agent/ -- see docs/architecture/plan.md's
+        # "Implementation note"). Without this, the deployed agent fails at
+        # runtime with ModuleNotFoundError the first time estimate_member_cost
+        # is called, not at deploy time -- there's no import-time check here.
+        extra_packages=[str(REPO_ROOT / "agent" / "csr_agent"), str(REPO_ROOT / "shared")],
         service_account=service_account,
         env_vars={
             "CLOUD_SQL_INSTANCE_CONNECTION_NAME": cloud_sql_instance,
@@ -76,6 +84,14 @@ def main() -> None:
 
     print(f"Deployed Agent Engine resource: {remote_app.resource_name}")
     print("Point the BFF's AGENT_ENGINE_RESOURCE_NAME at this value for this environment.")
+
+    output_file = os.environ.get("AGENT_ENGINE_OUTPUT_FILE")
+    if output_file:
+        # Written for cloudbuild/deploy.yaml to pick up in later steps
+        # (Cloud Build substitution variables are fixed at trigger time and
+        # can't be set mid-build from a step's output -- /workspace is the
+        # documented way steps hand values to each other).
+        Path(output_file).write_text(remote_app.resource_name, encoding="utf-8")
 
 
 if __name__ == "__main__":

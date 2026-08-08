@@ -57,6 +57,21 @@ variable "frontend_image" {
   type = string
 }
 
+variable "migrate_image" {
+  type    = string
+  default = "us-docker.pkg.dev/cloudrun/container/job:latest" # placeholder; CI overwrites via `gcloud run jobs update` on first deploy
+}
+
+variable "github_app_installation_id" {
+  description = "From the manual 'Install Cloud Build GitHub App' step -- see docs/architecture/cicd-setup.md."
+  type        = string
+}
+
+variable "github_pat_secret_id" {
+  description = "Secret Manager secret name holding a GitHub PAT, created manually -- see docs/architecture/cicd-setup.md."
+  type        = string
+}
+
 module "vpc_sc" {
   source            = "../../modules/vpc_sc"
   project_id        = var.project_id
@@ -73,6 +88,18 @@ module "agent_engine_sa" {
   environment = "prod"
 }
 
+resource "google_service_account" "migrate" {
+  project      = var.project_id
+  account_id   = "sa-migrate-prod"
+  display_name = "CSRSupport DB migration runner (prod)"
+}
+
+resource "google_project_iam_member" "migrate_cloud_sql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.migrate.email}"
+}
+
 module "cloud_sql" {
   source                  = "../../modules/cloud_sql"
   project_id              = var.project_id
@@ -80,12 +107,34 @@ module "cloud_sql" {
   environment             = "prod"
   vpc_network_id          = var.vpc_network_id
   agent_engine_iam_member = module.agent_engine_sa.service_account_email
+  migrate_iam_member      = google_service_account.migrate.email
+}
+
+module "artifact_registry" {
+  source      = "../../modules/artifact_registry"
+  project_id  = var.project_id
+  region      = var.region
+  environment = "prod"
+}
+
+module "migrate_job" {
+  source                 = "../../modules/cloud_run_job"
+  project_id             = var.project_id
+  region                 = var.region
+  job_name               = "csrsupport-migrate-prod"
+  image                  = var.migrate_image
+  service_account_email  = google_service_account.migrate.email
+  vpc_connector_id       = var.vpc_connector_id
+  env_vars = {
+    CLOUD_SQL_INSTANCE_CONNECTION_NAME = module.cloud_sql.instance_connection_name
+    CLOUD_SQL_IAM_USER                 = google_service_account.migrate.email
+  }
 }
 
 resource "google_service_account" "bff" {
   project      = var.project_id
   account_id   = "sa-bff-run-prod"
-  display_name = "CSRSupport BFF Cloud Run (dev)"
+  display_name = "CSRSupport BFF Cloud Run (prod)"
 }
 
 # Deliberately NOT granted any Cloud SQL role (plan §4 least-privilege
@@ -112,7 +161,7 @@ resource "google_project_iam_member" "bff_logging_writer" {
 resource "google_service_account" "frontend" {
   project      = var.project_id
   account_id   = "sa-frontend-run-prod"
-  display_name = "CSRSupport frontend Cloud Run (dev)"
+  display_name = "CSRSupport frontend Cloud Run (prod)"
 }
 # No grants beyond default logging -- serves static assets only (plan §4).
 
@@ -168,6 +217,22 @@ module "iap" {
   csr_group_email        = var.csr_group_email
 }
 
+module "cicd" {
+  source                     = "../../modules/cicd"
+  project_id                 = var.project_id
+  region                     = var.region
+  environment                = "prod"
+  github_app_installation_id = var.github_app_installation_id
+  github_pat_secret_id       = var.github_pat_secret_id
+  staging_bucket_name        = replace(module.artifact_registry.staging_bucket, "gs://", "")
+  runtime_service_account_ids = [
+    "projects/${var.project_id}/serviceAccounts/${google_service_account.bff.email}",
+    "projects/${var.project_id}/serviceAccounts/${google_service_account.frontend.email}",
+    "projects/${var.project_id}/serviceAccounts/${module.agent_engine_sa.service_account_email}",
+    "projects/${var.project_id}/serviceAccounts/${google_service_account.migrate.email}",
+  ]
+}
+
 output "cloud_sql_instance_connection_name" {
   value = module.cloud_sql.instance_connection_name
 }
@@ -178,4 +243,20 @@ output "bff_service_account_email" {
 
 output "agent_engine_service_account_email" {
   value = module.agent_engine_sa.service_account_email
+}
+
+output "migrate_service_account_email" {
+  value = google_service_account.migrate.email
+}
+
+output "artifact_registry_url" {
+  value = module.artifact_registry.repository_url
+}
+
+output "agent_engine_staging_bucket" {
+  value = module.artifact_registry.staging_bucket
+}
+
+output "cicd_service_account_email" {
+  value = module.cicd.cicd_service_account_email
 }

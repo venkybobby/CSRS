@@ -4,16 +4,21 @@
 # config), never hardcoded here.
 #
 # Promotion/approval model: three separate Cloud Build triggers reference
-# this one file --
+# this one file (infra/modules/cicd) --
 #   csrsupport-deploy-dev:      auto-runs on push to main, _ENVIRONMENT=dev
 #   csrsupport-deploy-staging:  manual invocation only (the "approval gate"
-#                                for this MVP1 setup is that nobody but an
-#                                authorized approver can invoke it -- see
-#                                the trigger's IAM bindings)
+#                                for this MVP1 setup is that only members of
+#                                the approvers group can invoke it -- see
+#                                infra/modules/cicd's trigger IAM bindings)
 #   csrsupport-deploy-prod:     manual invocation only, same pattern
 # A Cloud Deploy delivery pipeline with native approval stages is the more
 # sophisticated version of this if manual-trigger-as-approval-gate proves
 # too coarse; not needed for MVP1 scale.
+#
+# Why DB migrations run as a Cloud Run Job, not a plain Cloud Build step:
+# Cloud SQL has no public IP (plan §3.2) and Cloud Build's default worker
+# pool has no VPC route to it. A Cloud Run Job with a VPC connector does --
+# see infra/modules/cloud_run_job and db/migrations/Dockerfile.
 
 steps:
   - id: build-bff
@@ -36,27 +41,37 @@ steps:
       - "${_ARTIFACT_REGISTRY}/frontend:${SHORT_SHA}"
       - "frontend/"
 
-  - id: push-bff
+  - id: build-migrate
     name: gcr.io/cloud-builders/docker
-    args: ["push", "${_ARTIFACT_REGISTRY}/bff:${SHORT_SHA}"]
+    args:
+      - build
+      - -f
+      - db/migrations/Dockerfile
+      - -t
+      - "${_ARTIFACT_REGISTRY}/migrate:${SHORT_SHA}"
+      - "."
 
-  - id: push-frontend
+  - id: push-images
     name: gcr.io/cloud-builders/docker
-    args: ["push", "${_ARTIFACT_REGISTRY}/frontend:${SHORT_SHA}"]
-
-  - id: run-db-migrations
-    name: python:3.12-slim
     entrypoint: bash
     args:
       - -c
       - >
-        pip install --no-cache-dir sqlalchemy psycopg2-binary &&
-        python -c "
-        from sqlalchemy import create_engine, text
-        engine = create_engine('${_DATABASE_URL}')
-        with engine.begin() as conn:
-            conn.execute(text(open('db/migrations/0001_init_schema.sql').read()))
-        " || echo 'Migration already applied or no-op -- review manually if this was unexpected'
+        docker push ${_ARTIFACT_REGISTRY}/bff:${SHORT_SHA} &&
+        docker push ${_ARTIFACT_REGISTRY}/frontend:${SHORT_SHA} &&
+        docker push ${_ARTIFACT_REGISTRY}/migrate:${SHORT_SHA}
+
+  - id: run-db-migrations
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: bash
+    args:
+      - -c
+      - >
+        gcloud run jobs update csrsupport-migrate-${_ENVIRONMENT}
+        --image=${_ARTIFACT_REGISTRY}/migrate:${SHORT_SHA}
+        --project=${_PROJECT_ID} --region=${_REGION} &&
+        gcloud run jobs execute csrsupport-migrate-${_ENVIRONMENT}
+        --project=${_PROJECT_ID} --region=${_REGION} --wait
 
   - id: deploy-agent-engine
     name: python:3.12-slim
@@ -64,7 +79,7 @@ steps:
     args:
       - -c
       - >
-        pip install --no-cache-dir -r agent/requirements.txt google-cloud-aiplatform[adk] &&
+        pip install --no-cache-dir -r agent/requirements.txt &&
         python agent/csr_agent/deploy/deploy_agent_engine.py
     env:
       - "GOOGLE_CLOUD_PROJECT=${_PROJECT_ID}"
@@ -73,17 +88,18 @@ steps:
       - "AGENT_ENGINE_SERVICE_ACCOUNT=${_AGENT_ENGINE_SA}"
       - "CLOUD_SQL_INSTANCE_CONNECTION_NAME=${_CLOUD_SQL_INSTANCE}"
       - "CLOUD_SQL_IAM_USER=${_AGENT_ENGINE_SA}"
+      - "AGENT_ENGINE_OUTPUT_FILE=/workspace/agent_engine_resource_name.txt"
 
   - id: deploy-bff
     name: gcr.io/google.com/cloudsdktool/cloud-sdk
-    entrypoint: gcloud
+    entrypoint: bash
     args:
-      - run
-      - deploy
-      - "csrsupport-bff-${_ENVIRONMENT}"
-      - "--image=${_ARTIFACT_REGISTRY}/bff:${SHORT_SHA}"
-      - "--project=${_PROJECT_ID}"
-      - "--region=${_REGION}"
+      - -c
+      - >
+        gcloud run deploy csrsupport-bff-${_ENVIRONMENT}
+        --image=${_ARTIFACT_REGISTRY}/bff:${SHORT_SHA}
+        --project=${_PROJECT_ID} --region=${_REGION}
+        --update-env-vars=AGENT_ENGINE_RESOURCE_NAME=$(cat /workspace/agent_engine_resource_name.txt)
 
   - id: deploy-frontend
     name: gcr.io/google.com/cloudsdktool/cloud-sdk
@@ -96,6 +112,13 @@ steps:
       - "--project=${_PROJECT_ID}"
       - "--region=${_REGION}"
 
+  # --mode live only, not --mode both: the deterministic half needs direct
+  # DB access, which (like the migration step) this plain Cloud Build step
+  # doesn't have -- that half already ran in pr-checks.yaml against an
+  # ephemeral Postgres container on the Cloud Build network (no VPC needed
+  # there). Post-deploy, --mode live talks to the deployed Agent Engine over
+  # the public Vertex AI API and doesn't touch Postgres directly at all --
+  # the deployed stack reaches the DB through its own VPC-connected identity.
   - id: eval-suite-post-deploy
     name: python:3.12-slim
     entrypoint: bash
@@ -103,10 +126,8 @@ steps:
       - -c
       - >
         pip install --no-cache-dir -r requirements-dev.txt &&
-        python evals/run_eval.py --mode both --env ${_ENVIRONMENT}
-    env:
-      - "AGENT_ENGINE_RESOURCE_NAME=${_AGENT_ENGINE_RESOURCE_NAME}"
-      - "DATABASE_URL=${_DATABASE_URL}"
+        AGENT_ENGINE_RESOURCE_NAME=$(cat /workspace/agent_engine_resource_name.txt)
+        python evals/run_eval.py --mode live --env ${_ENVIRONMENT}
 
 substitutions:
   _ENVIRONMENT: "dev"
@@ -116,8 +137,6 @@ substitutions:
   _STAGING_BUCKET: "gs://csrsupport-dev-agent-engine-staging"
   _AGENT_ENGINE_SA: "sa-agent-engine-dev@csrsupport-dev.iam.gserviceaccount.com"
   _CLOUD_SQL_INSTANCE: "csrsupport-dev:us-central1:csrsupport-dev"
-  _AGENT_ENGINE_RESOURCE_NAME: "" # set from deploy-agent-engine's output; wire via a prior build's output or Secret Manager in practice
-  _DATABASE_URL: "" # Secret Manager reference in the real trigger config, never a literal value here
 
 options:
   logging: CLOUD_LOGGING_ONLY

@@ -32,6 +32,27 @@ than merely a historical artifact.
     `message` -- needed so the frontend's per-response_type components
     (§1.3) render every dollar figure straight from the tool's own JSON,
     untouched by the model, rather than parsing it back out of text.
+  - CI/CD wiring pass (added after the initial build, see
+    docs/architecture/cicd-setup.md for the full runbook): the DB migration
+    step in §6.3 turned out to need its own Cloud Run Job
+    (infra/modules/cloud_run_job, db/migrations/{Dockerfile,
+    run_migrations.py}) rather than a plain Cloud Build step, because
+    Cloud Build's default worker pool has no VPC route to the private-IP-only
+    Cloud SQL instance -- only a VPC-connected Cloud Run Job does. Also
+    added: infra/modules/{cicd,artifact_registry} (both referenced
+    throughout but never actually provisioned in the original scaffold), a
+    dedicated sa-migrate service account with DDL rights separate from
+    sa-agent-engine's SELECT/INSERT-only identity (db/bootstrap_iam_grants.sql
+    documents the one-time manual grant step this needs), and a fix to
+    deploy_agent_engine.py's extra_packages, which was missing shared/ and
+    would have failed at Agent Engine runtime the first time
+    estimate_member_cost ran, not at deploy time. Separately, Cloud SQL IAM
+    database usernames were being passed as full service-account emails
+    everywhere (Terraform's google_sql_user, deploy_agent_engine.py,
+    Cloud Build env vars) when Cloud SQL requires the
+    ".gserviceaccount.com" suffix stripped -- fixed once, centrally, in
+    agent/csr_agent/data/db.py::_iam_db_username() and in the two
+    google_sql_user resources' replace() calls, rather than in every caller.
 -->
 
 # CSRSupport — Production Architecture Plan
