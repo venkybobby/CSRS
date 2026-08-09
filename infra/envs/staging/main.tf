@@ -41,20 +41,32 @@ variable "csr_group_email" {
   default = "csr-agents@meridianhealthplans.com"
 }
 
-variable "vpc_network_id" {
-  type = string
+variable "enable_vpc_sc" {
+  description = "VPC Service Controls / Access Context Manager is an org-level feature -- unavailable on a standalone project with no GCP Organization (see docs/architecture/cicd-setup.md). Leave false for csrsupport-staging on a personal-account project; set true (and supply access_policy_id) once/if this project is part of an org."
+  type        = bool
+  default     = false
 }
 
-variable "vpc_connector_id" {
-  type = string
+variable "access_policy_id" {
+  description = "Org-level Access Context Manager policy ID. Only required when enable_vpc_sc = true."
+  type        = string
+  default     = null
 }
 
 variable "bff_image" {
   type = string
+  # Placeholder for first apply, same pattern as migrate_image below --
+  # Cloud Run requires a valid, already-existing image at apply time, and
+  # nothing has ever been pushed to Artifact Registry yet on a fresh
+  # environment (pr-checks.yaml only builds, never pushes). deploy.yaml
+  # overwrites this with a real image via `gcloud run deploy` on first
+  # real deploy.
+  default = "us-docker.pkg.dev/cloudrun/container/hello"
 }
 
 variable "frontend_image" {
-  type = string
+  type    = string
+  default = "us-docker.pkg.dev/cloudrun/container/hello"
 }
 
 variable "migrate_image" {
@@ -73,13 +85,17 @@ variable "github_pat_secret_id" {
 }
 
 module "vpc_sc" {
-  source            = "../../modules/vpc_sc"
-  project_id        = var.project_id
-  access_policy_id  = var.access_policy_id
+  count            = var.enable_vpc_sc ? 1 : 0
+  source           = "../../modules/vpc_sc"
+  project_id       = var.project_id
+  access_policy_id = var.access_policy_id
 }
 
-variable "access_policy_id" {
-  type = string
+module "networking" {
+  source      = "../../modules/networking"
+  project_id  = var.project_id
+  region      = var.region
+  environment = "staging"
 }
 
 module "agent_engine_sa" {
@@ -105,7 +121,7 @@ module "cloud_sql" {
   project_id              = var.project_id
   region                  = var.region
   environment             = "staging"
-  vpc_network_id          = var.vpc_network_id
+  vpc_network_id          = module.networking.vpc_network_id
   agent_engine_iam_member = module.agent_engine_sa.service_account_email
   migrate_iam_member      = google_service_account.migrate.email
 }
@@ -124,7 +140,7 @@ module "migrate_job" {
   job_name               = "csrsupport-migrate-staging"
   image                  = var.migrate_image
   service_account_email  = google_service_account.migrate.email
-  vpc_connector_id       = var.vpc_connector_id
+  vpc_connector_id       = module.networking.vpc_connector_id
   env_vars = {
     CLOUD_SQL_INSTANCE_CONNECTION_NAME = module.cloud_sql.instance_connection_name
     CLOUD_SQL_IAM_USER                 = google_service_account.migrate.email
@@ -174,7 +190,7 @@ module "bff_cloud_run" {
   service_account_email  = google_service_account.bff.email
   min_instances          = 0
   max_instances          = 10
-  vpc_connector_id       = var.vpc_connector_id
+  vpc_connector_id       = module.networking.vpc_connector_id
   env_vars = {
     IAP_EXPECTED_AUDIENCE          = var.iap_expected_audience
     AGENT_ENGINE_RESOURCE_NAME     = var.agent_engine_resource_name
@@ -202,7 +218,7 @@ module "frontend_cloud_run" {
   service_account_email  = google_service_account.frontend.email
   min_instances          = 0
   max_instances          = 5
-  vpc_connector_id       = var.vpc_connector_id
+  vpc_connector_id       = module.networking.vpc_connector_id
 }
 
 module "iap" {

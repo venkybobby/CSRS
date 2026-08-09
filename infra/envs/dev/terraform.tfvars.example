@@ -1,10 +1,18 @@
 # Copy to terraform.tfvars (gitignored) and fill in. Never commit real values.
 
-support_email    = "platform-team@meridianhealthplans.com"
-csr_group_email  = "csr-agents@meridianhealthplans.com"
-access_policy_id = "123456789012" # org-level Access Context Manager policy ID
-vpc_network_id   = "projects/csrsupport-dev/global/networks/csrsupport-vpc"
-vpc_connector_id = "projects/csrsupport-dev/locations/us-central1/connectors/csrsupport-connector"
+support_email   = "platform-team@meridianhealthplans.com"
+csr_group_email = "csr-agents@meridianhealthplans.com"
+
+# VPC network + Cloud SQL private-services peering + Serverless VPC Access
+# connector are now provisioned by module "networking" in main.tf -- no
+# longer inputs here.
+
+# VPC-SC / Access Context Manager is org-level and unavailable on a
+# standalone project (no GCP Organization). Leave both at their defaults
+# (enable_vpc_sc = false, access_policy_id unset) unless this project is
+# later moved into an org.
+# enable_vpc_sc  = true
+# access_policy_id = "123456789012"
 
 # Built by cloudbuild/deploy.yaml and pushed to Artifact Registry before
 # `terraform apply` runs for this environment.

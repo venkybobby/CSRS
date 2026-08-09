@@ -7,6 +7,17 @@ automates and what requires a human clicking through a browser once, because pre
 whole thing is `terraform apply` would be dishonest. Do this once per environment
 (dev/staging/prod are separate GCP projects, plan §6.1).
 
+**Live demo on `csrs-504922`:** this project is a standalone GCP project under a personal
+Google account — there is no GCP Organization. That changes two things everywhere below:
+VPC Service Controls / Access Context Manager (`infra/modules/vpc_sc`) is an org-level-only
+feature and stays **disabled** (`enable_vpc_sc = false`, the default); and the OAuth consent
+screen IAP depends on can only run in **Testing** publishing status (see §6.5), which is fine
+for a small named set of CSR test accounts and is what this runbook assumes. There's only one
+real project, so point `infra/envs/dev` at it (`project_id = "csrs-504922"` in
+`terraform.tfvars`) rather than standing up separate dev/staging/prod projects — staging/prod
+configs stay unapplied until additional GCP projects exist. §0 through §6.5 provision that one
+project end-to-end; §7 runs the 5 demo-script scenarios against it live.
+
 ## Why some of this can't be Terraform
 
 Two things in this pipeline are inherently one-time, human, browser-based actions that no
@@ -94,11 +105,29 @@ gcloud secrets add-iam-policy-binding csrsupport-github-pat \
 ```
 `infra/envs/<env>/terraform.tfvars`'s `github_pat_secret_id` = `csrsupport-github-pat`.
 
+## 2.5. One-time manual: create the Terraform state bucket
+
+`backend "gcs" { bucket = "csrsupport-dev-tfstate" }` in `infra/envs/dev/main.tf` tells
+Terraform *where* to store state — it does not create that bucket. `terraform init` fails
+outright against a bucket that doesn't exist yet. Create it once, before `init`:
+
+```bash
+gcloud storage buckets create gs://csrsupport-dev-tfstate \
+    --project=csrs-504922 --location=us-central1 --uniform-bucket-level-access
+gcloud storage buckets update gs://csrsupport-dev-tfstate --versioning
+```
+Versioning isn't optional polish here — it's the only rollback path if a bad `apply` corrupts
+state. Repeat for staging/prod's own `*-tfstate` bucket names only once those environments'
+projects actually exist.
+
 ## 3. Terraform apply
 
 ```bash
 cd infra/envs/dev
-cp terraform.tfvars.example terraform.tfvars   # fill in every value, including steps 1-2's outputs
+cp terraform.tfvars.example terraform.tfvars
+# fill in every value, including steps 1-2's outputs, AND override project_id/region for the
+# standalone project:
+#   project_id = "csrs-504922"
 terraform init
 terraform plan     # review — creates real, billed resources including two service accounts
                     # holding elevated IAM (sa-cicd-build, sa-migrate)
@@ -113,6 +142,18 @@ approval gate), and (in the staging/prod environments) `csrsupport-deploy-stagin
 `csrsupport-deploy-prod` (also on push to `main`, but **approval-gated** — see below). It also
 creates the Artifact Registry repo, the Agent Engine staging bucket, the migration Cloud Run
 Job (with a placeholder image), and `sa-migrate`'s Cloud SQL IAM database user.
+
+**Also provisioned automatically now** (`infra/modules/networking`, added after this doc's
+original version — previously `vpc_network_id`/`vpc_connector_id` were undocumented required
+inputs with nothing that created them): the custom-mode VPC, its subnet, the Cloud SQL
+private-services peering range and connection, and the Serverless VPC Access connector. No
+separate manual networking step exists anymore. `bff_image`/`frontend_image` also carry a
+placeholder default (`us-docker.pkg.dev/cloudrun/container/hello`) so this first `apply`
+doesn't fail on a Cloud Run requirement that an image already exist — `cloudbuild/deploy.yaml`
+overwrites both with real images on the first CI/CD deploy run.
+
+VPC-SC stays off (`enable_vpc_sc` defaults `false`) — leave `terraform.tfvars` alone on that
+var unless `csrs-504922` later joins a GCP Organization.
 
 ## 4. One-time manual: bootstrap the IAM database grants
 
@@ -168,6 +209,54 @@ successful `csrsupport-deploy-dev` run. Break the cycle in this order:
    `gcloud run services update csrsupport-bff-dev --update-env-vars=...` directly, which is
    faster for a one-off fix — Terraform will just reconcile to the same value next apply).
 
+## 6.5. One-time manual: configure the IAP OAuth consent screen (standalone project)
+
+`infra/modules/iap` creates the IAP-enabling resources, but the underlying OAuth consent
+screen it depends on has to be configured once per project through the Console (it isn't a
+Terraform-manageable resource) — **APIs & Services → OAuth consent screen**:
+
+1. **User type: Internal** is normally the easy path, but Internal requires a Google
+   Workspace organization — a standalone personal-account project doesn't have one, so this
+   project must use **External**.
+2. Publishing status: leave it in **Testing**, not Production. Production triggers Google's
+   verification review (a multi-week process meant for public-facing apps requesting broad
+   scopes); Testing skips that entirely and is the correct, honest choice for a CSR-internal
+   tool with a handful of named users.
+3. Under **Test users**, add the exact CSR test accounts (Google accounts) that will click
+   through IAP during the demo — Testing mode's consent screen only lets listed test users
+   past it, everyone else gets blocked at Google's login step before even reaching IAP.
+4. Grant `roles/iap.httpsResourceAccessor` on the BFF/frontend Cloud Run services to the same
+   accounts (or to a Google Group containing them, matching plan §4) — the OAuth consent
+   screen controls who can *authenticate*, IAP's IAM binding controls who's *authorized* after
+   that; both gates have to pass.
+
+Skipping this doesn't fail at `terraform apply` — it fails the first time a CSR opens the
+frontend URL, with Google's consent screen rejecting them as an untested user.
+
+## 7. Run the 5 demo-script scenarios live
+
+Once §6's circular-dependency fixups land and a real `deploy` build has gone green, verify the
+whole thing works by walking through `evals/demo_scripts.yaml`'s cases in the browser (open the
+frontend Cloud Run URL — IAP will bounce you through Google login, use one of §6.5's test
+accounts) exactly as a CSR would type them:
+
+| # | Type this | Expect |
+|---|---|---|
+| 1 | `M1002 wants an MRI on his knee, what does he owe?` | `STANDARD_COST` — $470.00 member cost (partial deductible + coinsurance) |
+| 2 | `What's James Whitaker M1004 looking at for knee surgery?` | `STANDARD_COST` — $150.00 member cost, OOP max triggered |
+| 3 | `Same question for M1007 and M1006 — knee surgery` (ask once for M1006, once for M1007) | Both `STANDARD_COST`, both $1,860.00 member cost, but `triggering_threshold` differs (`INDIVIDUAL` vs `FAMILY`) and `oop_remaining` differs ($3,100.00 vs $6,100.00) — this is the embedded-family divergence check, see the note in `evals/demo_scripts.yaml` |
+| 4 | `M1005 — anything, what do they owe?` | `TERMED_BLOCK` — mentions Priya Raman and a 2026-05-31 coverage end, no dollar figure at all |
+| 5 | `Cardiac CT for M1003` | `RATE_NOT_FOUND` — an honest "don't have a negotiated rate for that" miss, not a guess |
+
+For each case, also open the `audit_id` reference the UI shows and confirm
+`SELECT * FROM quote_audit_log WHERE audit_id = '<id>'` (via `gcloud sql connect`) returns a
+row with the exact same figures — that round-trip from UI back to the audit table is the actual
+thing being demoed, not just "the agent answered correctly." If any case instead shows the
+guardrail's "transfer to supervisor" fallback message, check Cloud Logging for a
+`GUARDRAIL_VIOLATION` entry before assuming the demo data is wrong — that's the numeric-
+provenance layer doing its job, and it means a real mismatch between what the model said and
+what the tool actually returned.
+
 ## Summary: automated vs. manual
 
 | Step | Mechanism |
@@ -176,7 +265,11 @@ successful `csrsupport-deploy-dev` run. Break the cycle in this order:
 | Grant build execution identity storage access | manual (`gcloud`, once, §0.5) |
 | GitHub App install | manual, browser OAuth (§1) |
 | GitHub PAT + Secret Manager | manual (§2) |
-| Cloud SQL, Cloud Run, Artifact Registry, IAM, Cloud Build triggers | `terraform apply` (§3) |
+| Terraform state bucket | manual (`gcloud storage buckets create`, once, §2.5) |
+| VPC, subnet, Cloud SQL peering, VPC connector, Cloud SQL, Cloud Run, Artifact Registry, IAM, Cloud Build triggers | `terraform apply` (§3) |
 | IAM database bootstrap grants | manual, once, SQL (§4) |
 | Build-approver IAM | manual (`gcloud`, §5) |
+| First-deploy circular-dependency fixups | manual, once, `terraform apply` or `gcloud run services update` (§6) |
+| IAP OAuth consent screen (Testing mode, test users) | manual, browser, once (§6.5) |
 | Everything after that — build, test, deploy, migrate, eval | fully automated, `cloudbuild/{pr-checks,deploy}.yaml` |
+| The 5 demo-script scenarios | manual walkthrough, once deployed (§7) |
