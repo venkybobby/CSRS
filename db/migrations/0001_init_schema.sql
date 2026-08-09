@@ -54,7 +54,22 @@ CREATE TABLE member_accumulators (
 );
 
 CREATE TABLE quote_audit_log (
-    audit_id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    -- Postgres requires a partitioned table's PRIMARY KEY (or any unique
+    -- constraint) to include every column in the partition key -- audit_id
+    -- alone as PK was rejected outright at CREATE TABLE time with
+    -- "unique constraint on partitioned table must include all
+    -- partitioning columns" the first time this schema ran against a real
+    -- Postgres. Composite (audit_id, created_at) satisfies that;
+    -- audit_id is still generated fresh via gen_random_uuid() on every
+    -- insert and never reused, so this doesn't meaningfully weaken
+    -- uniqueness in practice. One operational tradeoff worth knowing: a
+    -- partitioned table's PK index is local to each partition, so
+    -- `WHERE audit_id = ...` without a created_at filter (the audit-lookup
+    -- pattern in plan §4.6) checks each partition's local index rather
+    -- than routing to one partition directly -- fine at MVP1's partition
+    -- count (monthly), worth revisiting only if retention grows to
+    -- hundreds of partitions.
+    audit_id              uuid NOT NULL DEFAULT gen_random_uuid(),
     created_at            timestamptz NOT NULL DEFAULT now(),
     csr_user_id           text NOT NULL,
     session_id            text NOT NULL,
@@ -65,7 +80,8 @@ CREATE TABLE quote_audit_log (
     response_type         text NOT NULL,
     request_snapshot      jsonb NOT NULL,
     result_snapshot       jsonb NOT NULL,
-    source_data_snapshot  jsonb NOT NULL
+    source_data_snapshot  jsonb NOT NULL,
+    PRIMARY KEY (audit_id, created_at)
 ) PARTITION BY RANGE (created_at);
 
 -- Partition-per-month from day one (plan §4: retention/deletion later is a

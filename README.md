@@ -121,13 +121,17 @@ Being direct about this rather than claiming untested code works:
   the model-visible schema) — but never run against a live model or deployed Agent Engine
   resource. The BFF's FastAPI app imports and registers routes correctly but wasn't exercised
   end-to-end against a real Agent Engine or Postgres instance.
-- **Written, not executed**: `tests/integration/` and `evals/run_eval.py`'s case assertions both
-  need a reachable Postgres. This development sandbox blocks binding new listening sockets (even
-  a disposable local Postgres instance failed with `could not bind... Permission denied`), so
-  neither could be run here. `evals/run_eval.py`'s YAML parsing, argument handling, and per-case
-  dispatch logic *were* verified (it runs and fails gracefully with a clear "no DATABASE_URL"
-  message rather than crashing). **Run both in a normal CI environment or local machine before
-  trusting them as a merge/deploy gate.**
+- **Now actually verified against real Postgres, via the user's own Cloud Build run** (this
+  development sandbox still can't bind a local Postgres to test against directly -- a disposable
+  instance failed with `could not bind... Permission denied`, so `tests/integration/`'s case
+  assertions remain unexecuted *here*). That real run caught a genuine schema bug the design
+  review pass hadn't: `quote_audit_log`'s `PRIMARY KEY (audit_id)` on a table partitioned by
+  `created_at` is rejected outright by Postgres (`FeatureNotSupported: unique constraint on
+  partitioned table must include all partitioning columns`) -- fixed to a composite
+  `PRIMARY KEY (audit_id, created_at)` in `db/migrations/0001_init_schema.sql`. `evals/run_eval.py`'s
+  YAML parsing, argument handling, and per-case dispatch logic were separately verified here (it
+  runs and fails gracefully with a clear "no DATABASE_URL" message rather than crashing) but its
+  case assertions are likewise unexecuted in this sandbox.
 - **Verified in a real browser**: the frontend was built (`npm run build`, clean) and run against
   a mocked BFF response in an actual browser session, confirming the `demo_1` (partial deductible)
   and `demo_4` (termed member) cases render pixel-for-content-correct against the source spec's
