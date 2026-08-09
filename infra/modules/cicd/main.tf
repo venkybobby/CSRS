@@ -85,6 +85,15 @@ resource "google_project_iam_member" "cicd_aiplatform_user" {
   member  = "serviceAccount:${google_service_account.cicd.email}"
 }
 
+# Missing this makes Cloud Build unable to write logs anywhere -- deploy.yaml
+# sets options.logging = CLOUD_LOGGING_ONLY, and without this role builds fail
+# outright rather than just running with no visible log output.
+resource "google_project_iam_member" "cicd_logging_writer" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.cicd.email}"
+}
+
 resource "google_storage_bucket_iam_member" "cicd_staging_bucket_writer" {
   bucket = var.staging_bucket_name
   role   = "roles/storage.objectAdmin" # scoped to the one staging bucket, not project-wide storage.admin
