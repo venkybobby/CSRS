@@ -27,8 +27,15 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 # `python agent/csr_agent/deploy/deploy_agent_engine.py` from the repo root
 # (Cloud Build's run-db-migrations pattern) -- Python only puts the script's
 # own directory on sys.path, not agent/. Same fix db/migrations/
-# run_migrations.py already applies for the identical reason.
+# run_migrations.py already applies for the identical reason. Also need
+# REPO_ROOT itself on sys.path: importing csr_agent.agent (to get
+# root_agent) transitively pulls in csr_agent.pipeline.estimate, which
+# imports shared.messages -- shared/ lives at the repo root, not under
+# agent/, matching extra_packages below which bundles both directories
+# for the *deployed* Agent Engine runtime; this covers the *local* import
+# needed just to construct the AdkApp before deploying it.
 sys.path.insert(0, str(REPO_ROOT / "agent"))
+sys.path.insert(0, str(REPO_ROOT))
 
 import vertexai  # noqa: E402
 from csr_agent.agent import root_agent  # noqa: E402
