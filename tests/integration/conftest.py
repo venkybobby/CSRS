@@ -10,16 +10,13 @@ for whatever Postgres happens to be running locally.
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 import csr_agent.data.db as db_module
 import pytest
 from sqlalchemy import create_engine, text
 
+from db.migrations.run_migrations import apply_pending_migrations
 from db.seed.seed import seed
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
-MIGRATION_SQL = REPO_ROOT / "db" / "migrations" / "0001_init_schema.sql"
 
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
 
@@ -39,7 +36,14 @@ def seeded_db():
     with engine.begin() as conn:
         conn.execute(text("DROP SCHEMA public CASCADE"))
         conn.execute(text("CREATE SCHEMA public"))
-        conn.execute(text(MIGRATION_SQL.read_text(encoding="utf-8")))
+    # Single source of truth for "how do I apply the schema" -- see
+    # apply_pending_migrations' docstring. The DROP SCHEMA above also drops
+    # schema_migrations itself, so this always sees zero recorded
+    # migrations and applies 0001_init_schema.sql fresh, tracked, every
+    # test -- and a later, separate process (e.g. db/migrations/
+    # run_migrations.py run against this same database afterward) correctly
+    # sees it as already applied instead of retrying CREATE TABLE.
+    apply_pending_migrations(engine)
     engine.dispose()
 
     seed(TEST_DATABASE_URL)

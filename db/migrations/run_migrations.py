@@ -24,6 +24,7 @@ import sys
 from pathlib import Path
 
 from sqlalchemy import text
+from sqlalchemy.engine import Engine
 
 MIGRATIONS_DIR = Path(__file__).parent
 REPO_ROOT = MIGRATIONS_DIR.parents[1]
@@ -44,18 +45,24 @@ def pending_migrations(applied: set[str]) -> list[Path]:
     return [f for f in all_migrations if f.stem not in applied]
 
 
-def main() -> int:
-    engine = get_engine()
-
+def apply_pending_migrations(engine: Engine) -> int:
+    """The one place schema application happens -- imported directly by
+    tests/integration/conftest.py's seeded_db fixture, not just invoked as
+    a standalone script. Two independent code paths applying
+    0001_init_schema.sql (the test fixture re-running the raw .sql file
+    on every test vs. this script's schema_migrations-tracked apply) is
+    exactly what caused a DuplicateTable error the first time both ran
+    against the same shared Postgres container in one CI pipeline: the
+    fixture's raw apply left tables in place without ever recording them
+    in schema_migrations, so this script's tracking-table check didn't
+    know they existed and tried to re-run CREATE TABLE. Single source of
+    truth now -- returns the number of migrations actually applied.
+    """
     with engine.begin() as conn:
         conn.execute(text(TRACKING_TABLE_DDL))
         applied = {row[0] for row in conn.execute(text("SELECT id FROM schema_migrations"))}
 
     pending = pending_migrations(applied)
-    if not pending:
-        print("No pending migrations.")
-        return 0
-
     for migration_file in pending:
         print(f"Applying {migration_file.name} ...")
         sql = migration_file.read_text(encoding="utf-8")
@@ -67,7 +74,15 @@ def main() -> int:
             )
         print(f"  applied {migration_file.name}")
 
-    print(f"Applied {len(pending)} migration(s).")
+    return len(pending)
+
+
+def main() -> int:
+    count = apply_pending_migrations(get_engine())
+    if count == 0:
+        print("No pending migrations.")
+    else:
+        print(f"Applied {count} migration(s).")
     return 0
 
 
