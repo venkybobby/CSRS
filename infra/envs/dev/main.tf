@@ -229,12 +229,84 @@ module "frontend_cloud_run" {
 }
 
 module "iap" {
-  source                 = "../../modules/iap"
-  project_id             = var.project_id
-  region                 = var.region
-  support_email          = var.support_email
-  cloud_run_service_name = module.bff_cloud_run.service_name
-  csr_group_email        = var.csr_group_email
+  source      = "../../modules/iap"
+  project_id  = var.project_id
+  region      = var.region
+  support_email = var.support_email
+  cloud_run_service_names = [
+    module.bff_cloud_run.service_name,
+    module.frontend_cloud_run.service_name,
+  ]
+  csr_group_email = var.csr_group_email
+}
+
+# External HTTPS load balancer front door -- infra/modules/iap only
+# creates the IAP-enabled backend services, it deliberately doesn't own
+# this GCP-standard LB boilerplate (see that module's header comment).
+# This was never actually built despite the module assuming it existed
+# "alongside it in the environment's root module" -- found by actually
+# trying to open the frontend URL and hitting a 404 with zero LB
+# resources present in the project.
+#
+# SSL cert uses the nip.io trick (a public wildcard DNS service that
+# resolves <ip-with-dashes>.nip.io to the IP embedded in its own name) --
+# works with Google-managed certs with no real domain purchase or DNS
+# control needed, appropriate for a demo project. Swap for a real domain
+# if this becomes long-lived.
+resource "google_compute_global_address" "lb_ip" {
+  project = var.project_id
+  name    = "csrsupport-dev-lb-ip"
+}
+
+locals {
+  lb_domain = "${replace(google_compute_global_address.lb_ip.address, ".", "-")}.nip.io"
+}
+
+resource "google_compute_managed_ssl_certificate" "csrsupport" {
+  project = var.project_id
+  name    = "csrsupport-dev-cert"
+  managed {
+    domains = [local.lb_domain]
+  }
+}
+
+# Path-based routing on one shared origin, matching frontend/src/api.ts's
+# same-origin relative fetch("/api/v1/query") -- default (/) goes to the
+# frontend's static SPA, /api/* goes to the BFF.
+resource "google_compute_url_map" "csrsupport" {
+  project         = var.project_id
+  name            = "csrsupport-dev-lb"
+  default_service = module.iap.backend_service_ids[module.frontend_cloud_run.service_name]
+
+  host_rule {
+    hosts        = [local.lb_domain]
+    path_matcher = "api-routing"
+  }
+
+  path_matcher {
+    name            = "api-routing"
+    default_service = module.iap.backend_service_ids[module.frontend_cloud_run.service_name]
+
+    path_rule {
+      paths   = ["/api/*"]
+      service = module.iap.backend_service_ids[module.bff_cloud_run.service_name]
+    }
+  }
+}
+
+resource "google_compute_target_https_proxy" "csrsupport" {
+  project          = var.project_id
+  name             = "csrsupport-dev-https-proxy"
+  url_map          = google_compute_url_map.csrsupport.id
+  ssl_certificates = [google_compute_managed_ssl_certificate.csrsupport.id]
+}
+
+resource "google_compute_global_forwarding_rule" "csrsupport" {
+  project    = var.project_id
+  name       = "csrsupport-dev-forwarding-rule"
+  target     = google_compute_target_https_proxy.csrsupport.id
+  port_range = "443"
+  ip_address = google_compute_global_address.lb_ip.address
 }
 
 module "cicd" {
@@ -277,17 +349,18 @@ output "cicd_service_account_email" {
   value = module.cicd.cicd_service_account_email
 }
 
-# The runbook (§6 step 2) says `terraform output` gives the IAP backend
-# service ID to derive iap_expected_audience from -- true only once this
-# is re-exported at the env level, since infra/modules/iap's own output
-# only exists at the module scope.
-output "iap_backend_service_id" {
-  value = module.iap.backend_service_id
+# Ready to paste straight into terraform.tfvars's iap_expected_audience --
+# specifically the BFF's own audience, since that's the backend service
+# bff/app/auth.py validates JWTs against (the frontend's backend service
+# has its own, different audience, only used by IAP itself, never read by
+# app code).
+output "iap_expected_audience" {
+  value = module.iap.iap_expected_audiences[module.bff_cloud_run.service_name]
 }
 
-# Ready to paste straight into terraform.tfvars's iap_expected_audience --
-# no manual gcloud lookup or /projects/<NUM>/global/backendServices/<NUM>
-# formatting needed.
-output "iap_expected_audience" {
-  value = module.iap.iap_expected_audience
+# The LB's front door -- open this in a browser (IAP will bounce you
+# through Google login using a §6.5 test account), not the raw Cloud Run
+# URL, which INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER rejects directly.
+output "frontend_url" {
+  value = "https://${local.lb_domain}"
 }

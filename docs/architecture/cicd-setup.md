@@ -287,9 +287,10 @@ frontend URL, with Google's consent screen rejecting them as an untested user.
 ## 7. Run the 5 demo-script scenarios live
 
 Once §6's circular-dependency fixups land and a real `deploy` build has gone green, verify the
-whole thing works by walking through `evals/demo_scripts.yaml`'s cases in the browser (open the
-frontend Cloud Run URL — IAP will bounce you through Google login, use one of §6.5's test
-accounts) exactly as a CSR would type them:
+whole thing works by walking through `evals/demo_scripts.yaml`'s cases in the browser (open
+`terraform output frontend_url` — **not** the raw Cloud Run URL, which
+`INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER` rejects directly; IAP will bounce you through Google
+login at the LB, use one of §6.5's test accounts) exactly as a CSR would type them:
 
 | # | Type this | Expect |
 |---|---|---|
@@ -300,9 +301,11 @@ accounts) exactly as a CSR would type them:
 | 5 | `Cardiac CT for M1003` | `RATE_NOT_FOUND` — an honest "don't have a negotiated rate for that" miss, not a guess |
 
 For each case, also open the `audit_id` reference the UI shows and confirm
-`SELECT * FROM quote_audit_log WHERE audit_id = '<id>'` (via `gcloud sql connect`) returns a
-row with the exact same figures — that round-trip from UI back to the audit table is the actual
-thing being demoed, not just "the agent answered correctly." If any case instead shows the
+`SELECT * FROM quote_audit_log WHERE audit_id = '<id>'` returns a row with the exact same
+figures — that round-trip from UI back to the audit table is the actual thing being demoed, not
+just "the agent answered correctly." Dev's database is Supabase (§2.6), not Cloud SQL, so query
+it via the Supabase SQL Editor or `execute_sql` MCP tool, not `gcloud sql connect`
+(staging/prod, still on Cloud SQL, do use `gcloud sql connect`). If any case instead shows the
 guardrail's "transfer to supervisor" fallback message, check Cloud Logging for a
 `GUARDRAIL_VIOLATION` entry before assuming the demo data is wrong — that's the numeric-
 provenance layer doing its job, and it means a real mismatch between what the model said and
@@ -318,7 +321,7 @@ what the tool actually returned.
 | GitHub PAT + Secret Manager | manual (§2) |
 | Terraform state bucket | manual (`gcloud storage buckets create`, once, §2.5) |
 | Supabase project + DB role bootstrap + Secret Manager secrets | manual, once, dashboard/SQL/`gcloud` (§2.6, before §3) |
-| Cloud Run, Artifact Registry, IAM, Cloud Build triggers | `terraform apply` (§3) |
+| Cloud Run, Artifact Registry, IAM, Cloud Build triggers, IAP + HTTPS load balancer | `terraform apply` (§3) |
 | Build-approver IAM | manual (`gcloud`, §5) |
 | First-deploy circular-dependency fixups | manual, once, `terraform apply` or `gcloud run services update` (§6) |
 | IAP OAuth consent screen (Testing mode, test users) | manual, browser, once (§6.5) |

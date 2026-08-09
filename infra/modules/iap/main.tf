@@ -1,13 +1,21 @@
-# Identity-Aware Proxy in front of a Cloud Run service (plan §4.1): CSR auth
+# Identity-Aware Proxy in front of Cloud Run services (plan §4.1): CSR auth
 # is IAP + Google Identity Platform/Workspace SSO, no app-level login.
 #
-# This module covers the IAP-specific resources (brand, backend service
-# with the iap{} block enabled, and the IAM binding restricting access to
-# the CSR group). It assumes the surrounding external HTTPS load balancer
-# scaffolding (URL map, target proxy, forwarding rule, managed SSL cert) is
-# provisioned alongside it in the environment's root module -- reproduced
-# here would be standard GCP LB boilerplate that isn't the security-relevant
-# part of this module.
+# This module covers the IAP-specific resources (one shared brand/client,
+# and per-service backend service + NEG + IAM binding). It assumes the
+# surrounding external HTTPS load balancer scaffolding (URL map, target
+# proxy, forwarding rule, managed SSL cert) is provisioned alongside it in
+# the environment's root module -- reproduced here would be standard GCP LB
+# boilerplate that isn't the security-relevant part of this module.
+#
+# Every service in cloud_run_service_names gets IAP-protected, not just the
+# BFF: frontend/src/api.ts calls /api/v1/query with credentials: "include"
+# as a same-origin relative path, meaning the frontend and BFF share one
+# LB origin. If only the BFF's backend service were IAP-protected, the
+# browser would never get challenged for login on the frontend's initial
+# page load, and the first /api/v1/query fetch() would hit IAP's redirect-
+# to-login response instead of JSON -- fetch() can't complete an
+# interactive OAuth flow. Found by actually walking §7's live demo steps.
 
 variable "project_id" {
   type = string
@@ -23,8 +31,9 @@ variable "application_title" {
   default = "CSRSupport"
 }
 
-variable "cloud_run_service_name" {
-  type = string
+variable "cloud_run_service_names" {
+  description = "Cloud Run service names to put behind IAP, sharing one OAuth brand/client. Each gets its own NEG + backend service + IAM binding."
+  type        = set(string)
 }
 
 variable "region" {
@@ -48,23 +57,25 @@ resource "google_iap_client" "csrsupport" {
 }
 
 resource "google_compute_region_network_endpoint_group" "cloud_run_neg" {
+  for_each              = var.cloud_run_service_names
   project               = var.project_id
-  name                  = "${var.cloud_run_service_name}-neg"
+  name                  = "${each.value}-neg"
   region                = var.region
   network_endpoint_type = "SERVERLESS"
   cloud_run {
-    service = var.cloud_run_service_name
+    service = each.value
   }
 }
 
 resource "google_compute_backend_service" "cloud_run_backend" {
+  for_each    = var.cloud_run_service_names
   project     = var.project_id
-  name        = "${var.cloud_run_service_name}-backend"
+  name        = "${each.value}-backend"
   protocol    = "HTTPS"
   timeout_sec = 30
 
   backend {
-    group = google_compute_region_network_endpoint_group.cloud_run_neg.id
+    group = google_compute_region_network_endpoint_group.cloud_run_neg[each.key].id
   }
 
   iap {
@@ -74,31 +85,37 @@ resource "google_compute_backend_service" "cloud_run_backend" {
   }
 }
 
-# Only this group can reach the IAP-protected backend -- onboarding/
+# Only this group can reach the IAP-protected backends -- onboarding/
 # offboarding a CSR is a Google Group membership change (plan §4.1),
 # auditable via Cloud Identity admin logs, not an app-level user table.
 resource "google_iap_web_backend_service_iam_member" "csr_access" {
+  for_each            = var.cloud_run_service_names
   project             = var.project_id
-  web_backend_service  = google_compute_backend_service.cloud_run_backend.name
-  role                 = "roles/iap.httpsResourceAccessor"
-  member               = "group:${var.csr_group_email}"
+  web_backend_service = google_compute_backend_service.cloud_run_backend[each.key].name
+  role                = "roles/iap.httpsResourceAccessor"
+  member              = "group:${var.csr_group_email}"
 }
 
 data "google_project" "current" {
   project_id = var.project_id
 }
 
-# IAP's JWT audience claim uses NUMERIC project number + NUMERIC backend
-# service ID -- .id (used previously) is Terraform's name-based resource
-# path (projects/<PROJECT_ID>/global/backendServices/<NAME>), which looks
-# plausible but silently doesn't match what IAP actually issues, since
-# .generated_id is the numeric one. Found via a live iap_backend_service_id
-# output that returned the wrong format for iap_expected_audience.
-output "backend_service_id" {
-  value = google_compute_backend_service.cloud_run_backend.generated_id
+# .id (Terraform's name-based resource path, projects/<PROJECT_ID>/global/
+# backendServices/<NAME>) is what a URL map's default_service/path_rule
+# service fields need -- a valid resource reference.
+output "backend_service_ids" {
+  description = "Map of Cloud Run service name -> backend service resource ID, for wiring a URL map."
+  value       = { for k, v in google_compute_backend_service.cloud_run_backend : k => v.id }
 }
 
-output "iap_expected_audience" {
-  description = "Ready-to-use value for terraform.tfvars's iap_expected_audience -- no manual gcloud lookup or string formatting needed."
-  value       = "/projects/${data.google_project.current.number}/global/backendServices/${google_compute_backend_service.cloud_run_backend.generated_id}"
+# IAP's JWT audience claim uses NUMERIC project number + NUMERIC backend
+# service ID (.generated_id) -- .id above looks plausible for this too but
+# silently doesn't match what IAP actually issues. Found via a live
+# iap_backend_service_id output that returned the wrong format.
+output "iap_expected_audiences" {
+  description = "Map of Cloud Run service name -> ready-to-use IAP JWT audience string."
+  value = {
+    for k, v in google_compute_backend_service.cloud_run_backend :
+    k => "/projects/${data.google_project.current.number}/global/backendServices/${v.generated_id}"
+  }
 }
