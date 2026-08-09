@@ -284,6 +284,21 @@ Terraform-manageable resource) — **APIs & Services → OAuth consent screen**:
 Skipping this doesn't fail at `terraform apply` — it fails the first time a CSR opens the
 frontend URL, with Google's consent screen rejecting them as an untested user.
 
+**Also one-time manual, separate gotcha**: IAP's own Google-managed service agent (distinct
+from the `csr_access` end-user IAM binding above) needs to exist before it can invoke the
+Cloud Run services on an authenticated user's behalf:
+
+```bash
+gcloud beta services identity create --service=iap.googleapis.com --project=csrs-504922
+```
+
+Not Terraform-manageable (a Google-managed service identity, not a project resource) and not
+auto-provisioned just by enabling the IAP API. Skipping this doesn't fail at `terraform apply`
+either — it fails in the browser with "The IAP service account is not provisioned," found live
+trying to open the frontend URL for the first time. `infra/modules/iap`'s
+`google_cloud_run_v2_service_iam_member.iap_invoker` grants that agent `roles/run.invoker` once
+it exists, but Terraform can't create the agent itself.
+
 ## 7. Run the 5 demo-script scenarios live
 
 Once §6's circular-dependency fixups land and a real `deploy` build has gone green, verify the

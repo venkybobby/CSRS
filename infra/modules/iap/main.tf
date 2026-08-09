@@ -100,6 +100,24 @@ data "google_project" "current" {
   project_id = var.project_id
 }
 
+# Separate from csr_access above: that grants END USERS access through
+# IAP; this grants IAP's OWN Google-managed service agent permission to
+# actually invoke the Cloud Run service once it's let a user through.
+# Without it, IAP returns "The IAP service account is not provisioned" --
+# found live trying to open the frontend URL. The service agent itself
+# still has to be provisioned once via `gcloud beta services identity
+# create --service=iap.googleapis.com` (not Terraform-manageable, a
+# Google-managed service identity, not a resource this project creates)
+# before this IAM binding has anything valid to reference.
+resource "google_cloud_run_v2_service_iam_member" "iap_invoker" {
+  for_each = var.cloud_run_service_names
+  project  = var.project_id
+  location = var.region
+  name     = each.value
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-iap.iam.gserviceaccount.com"
+}
+
 # .id (Terraform's name-based resource path, projects/<PROJECT_ID>/global/
 # backendServices/<NAME>) is what a URL map's default_service/path_rule
 # service fields need -- a valid resource reference.
