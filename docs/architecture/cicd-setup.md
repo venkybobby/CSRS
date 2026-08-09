@@ -252,8 +252,10 @@ successful `csrsupport-deploy-dev` run. Break the cycle in this order:
    `/workspace/agent_engine_resource_name.txt`, written earlier in the same build by
    `deploy_agent_engine.py`), so this part self-resolves on the very first CI/CD run.
 2. `IAP_EXPECTED_AUDIENCE` doesn't self-resolve — after step 1, run
-   `terraform output` (or check the Console) for the IAP backend service's numeric ID, format
-   it as `/projects/<PROJECT_NUMBER>/global/backendServices/<BACKEND_SERVICE_ID>`, set it as
+   `terraform output iap_expected_audience` (ready to paste as-is; `infra/modules/iap` computes
+   the numeric-project-number/numeric-backend-service-ID format IAP's JWT audience actually
+   uses via a `google_project` data source, not `.id`'s deceptively similar-looking
+   name-based path, which silently doesn't match what IAP issues), set it as
    `iap_expected_audience` in `terraform.tfvars`, and `terraform apply` again (or
    `gcloud run services update csrsupport-bff-dev --update-env-vars=...` directly, which is
    faster for a one-off fix — Terraform will just reconcile to the same value next apply).

@@ -84,6 +84,21 @@ resource "google_iap_web_backend_service_iam_member" "csr_access" {
   member               = "group:${var.csr_group_email}"
 }
 
+data "google_project" "current" {
+  project_id = var.project_id
+}
+
+# IAP's JWT audience claim uses NUMERIC project number + NUMERIC backend
+# service ID -- .id (used previously) is Terraform's name-based resource
+# path (projects/<PROJECT_ID>/global/backendServices/<NAME>), which looks
+# plausible but silently doesn't match what IAP actually issues, since
+# .generated_id is the numeric one. Found via a live iap_backend_service_id
+# output that returned the wrong format for iap_expected_audience.
 output "backend_service_id" {
-  value = google_compute_backend_service.cloud_run_backend.id
+  value = google_compute_backend_service.cloud_run_backend.generated_id
+}
+
+output "iap_expected_audience" {
+  description = "Ready-to-use value for terraform.tfvars's iap_expected_audience -- no manual gcloud lookup or string formatting needed."
+  value       = "/projects/${data.google_project.current.number}/global/backendServices/${google_compute_backend_service.cloud_run_backend.generated_id}"
 }

@@ -284,3 +284,10 @@ output "cicd_service_account_email" {
 output "iap_backend_service_id" {
   value = module.iap.backend_service_id
 }
+
+# Ready to paste straight into terraform.tfvars's iap_expected_audience --
+# no manual gcloud lookup or /projects/<NUM>/global/backendServices/<NUM>
+# formatting needed.
+output "iap_expected_audience" {
+  value = module.iap.iap_expected_audience
+}
