@@ -6,9 +6,12 @@
 # google-adk 0.5.0 hard-required google-cloud-aiplatform>=1.87.0. Verified
 # 2026-08-08 against the actual code (agent construction, tool schemas,
 # deploy script, full unit suite) with `pip install` in a clean venv --
-# not just "these numbers exist on PyPI."
+# not just "these numbers exist on PyPI." The [agent_engines] extra pulls
+# in cloudpickle, required by agent_engines.create() to serialize the
+# agent for upload -- plain google-cloud-aiplatform omits it, found via
+# a live deploy-agent-engine ImportError.
 google-adk==2.6.3
-google-cloud-aiplatform==1.163.0
+google-cloud-aiplatform[agent_engines]==1.163.0
 pydantic==2.13.4
 rapidfuzz==3.10.1
 cloud-sql-python-connector[pg8000]==1.21.0
