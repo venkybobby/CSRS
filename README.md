@@ -98,11 +98,33 @@ Full ordered runbook: [docs/architecture/cicd-setup.md](docs/architecture/cicd-s
 
 Being direct about this rather than claiming untested code works:
 
-- **Fully executed and passing**: all 45 unit tests (`pytest tests/unit -v`), including every
-  worked numeric example from the source spec (M1001–M1010), the rate-matcher's honest-miss and
-  forced-clarification behavior, the numeric-provenance guardrail's formatting-divergence and
-  fabrication-detection cases, IAP JWT verification (mocked), session-minting logic, and the
-  Cloud SQL IAM-username-stripping fix (caught while wiring the CI/CD Terraform -- see below).
+- **`cloudbuild/pr-checks.yaml` is fully green end-to-end against a real GCP project**
+  (`csrs-504922`, build `1ae41168`, 9m35s): lint, typecheck, all 48 unit tests (including every
+  worked numeric example from the source spec M1001–M1010, the numeric-provenance guardrail's
+  formatting-divergence and fabrication-detection cases, and IAP JWT verification), all 17
+  integration tests against real Postgres, the deterministic eval suite (all 6 demo-script
+  cases), and all three container builds (bff/frontend/migrate). This development sandbox still
+  can't bind a local Postgres to test against directly (a disposable instance failed with
+  `could not bind... Permission denied`), so every DB-dependent piece was verified entirely
+  through that real run, not here. Getting to green surfaced three genuine bugs no design or
+  static-review pass had caught:
+  1. `quote_audit_log`'s `PRIMARY KEY (audit_id)` on a table partitioned by `created_at` is
+     rejected outright by Postgres (`FeatureNotSupported: unique constraint on partitioned table
+     must include all partitioning columns`) -- fixed to a composite
+     `PRIMARY KEY (audit_id, created_at)`.
+  2. The integration-test fixture and `db/migrations/run_migrations.py` applied the schema
+     through two different, silently-drifting code paths (one tracked in `schema_migrations`, one
+     not), which broke the moment both ran against the same shared CI Postgres container --
+     unified into one `apply_pending_migrations()` function both now call.
+  3. `match_procedure()`'s fuzzy matching only worked on short isolated phrases ("MRI on his
+     knee") -- every unit test used that shape of input, but the real demo-script questions are
+     full CSR sentences ("M1002 wants an MRI on his knee, what does he owe?"), which scored far
+     below the match threshold under the original scorer. The first fix attempt
+     (`partial_token_set_ratio`) solved that but introduced a worse bug -- it scored "MRI on his
+     back" as a 100% match against "MRI brain," a wrong-body-part cross-match that would produce
+     the wrong CPT, rate, and prior-auth determination, not just bad UX. Landed on
+     `token_set_ratio` plus stripping member-ID tokens before scoring, verified against both
+     failure modes with new regression tests.
 - **Terraform/CI-CD config: written, structurally checked, not applied.** `infra/modules/cicd`,
   `artifact_registry`, and `cloud_run_job` (the DB-migration runner) were added after the initial
   build, along with fixes to real gaps caught along the way: `deploy_agent_engine.py` was missing
@@ -121,22 +143,6 @@ Being direct about this rather than claiming untested code works:
   the model-visible schema) — but never run against a live model or deployed Agent Engine
   resource. The BFF's FastAPI app imports and registers routes correctly but wasn't exercised
   end-to-end against a real Agent Engine or Postgres instance.
-- **`tests/integration/`: now actually executed against real Postgres and passing (17/17)**, via
-  Cloud Build's `pr-checks.yaml` in a real GCP project -- this development sandbox still can't
-  bind a local Postgres to test against directly (a disposable instance failed with
-  `could not bind... Permission denied`), so this was verified through that real run, not here.
-  Getting there caught two genuine bugs the design/static-review passes hadn't: (1)
-  `quote_audit_log`'s `PRIMARY KEY (audit_id)` on a table partitioned by `created_at` is rejected
-  outright by Postgres (`FeatureNotSupported: unique constraint on partitioned table must include
-  all partitioning columns`) -- fixed to a composite `PRIMARY KEY (audit_id, created_at)`; (2) the
-  test fixture and `db/migrations/run_migrations.py` applied the schema through two different,
-  silently-drifting code paths (one tracked in `schema_migrations`, one not), which broke the
-  moment both ran against the same shared CI Postgres container -- unified into one
-  `apply_pending_migrations()` function both now call. `evals/run_eval.py`'s YAML parsing,
-  argument handling, and per-case dispatch logic were separately verified here (it runs and fails
-  gracefully with a clear "no DATABASE_URL" message rather than crashing); its case assertions
-  should now pass too given they exercise the same schema/pipeline path integration tests just
-  proved out, but that hasn't been confirmed by an actual run yet.
 - **Verified in a real browser**: the frontend was built (`npm run build`, clean) and run against
   a mocked BFF response in an actual browser session, confirming the `demo_1` (partial deductible)
   and `demo_4` (termed member) cases render pixel-for-content-correct against the source spec's
