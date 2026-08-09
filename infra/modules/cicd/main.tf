@@ -133,7 +133,7 @@ resource "google_cloudbuild_trigger" "pr_checks" {
   repository_event_config {
     repository = google_cloudbuildv2_repository.csrs.id
     pull_request {
-      branch = "^main$"
+      branch = "^master$"
     }
   }
 
@@ -149,7 +149,7 @@ resource "google_cloudbuild_trigger" "deploy" {
   service_account = google_service_account.cicd.id
   filename        = "cloudbuild/deploy.yaml"
 
-  # All three triggers fire on push to main -- staging/prod queuing a build
+  # All three triggers fire on push to master -- staging/prod queuing a build
   # immediately isn't a problem because approval_config below is the actual
   # gate: a human holding roles/cloudbuild.builds.approver must approve
   # before a staging/prod build's steps run at all (dev has no such
@@ -159,7 +159,7 @@ resource "google_cloudbuild_trigger" "deploy" {
   repository_event_config {
     repository = google_cloudbuildv2_repository.csrs.id
     push {
-      branch = "^main$"
+      branch = "^master$"
     }
   }
 

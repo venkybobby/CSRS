@@ -84,9 +84,17 @@ browser OAuth prompt — there's no non-interactive path.)
 
 ## 2. One-time manual: create a GitHub PAT and store it in Secret Manager
 
-Create a **fine-grained PAT** on `venkybobby/CSRS` with `Contents: Read-only` and
-`Metadata: Read-only` (that's all Cloud Build needs to read the repo — resist the urge to grant
-more), then:
+**Must be a classic PAT** — confirmed against Cloud Build's own docs: "Cloud Build doesn't
+support the use of GitHub fine-grained access tokens." A fine-grained token here fails silently
+at `terraform apply` time with a misleading `google_cloudbuildv2_connection` error ("the user
+token does not have access to installations"), not at token-creation time, so this is easy to
+get wrong without ever seeing an obvious cause.
+
+At **[github.com/settings/tokens](https://github.com/settings/tokens)**, use the
+**"Tokens (classic)"** tab (not "Fine-grained tokens") → **Generate new token (classic)**, on
+the same GitHub account that installs the Cloud Build GitHub App in §1. Scopes: `repo`
+(full control of private repos), `read:user`, and `read:org` (needed even for a personal-account
+repo — the GitHub App installation is checked via an org-shaped API regardless), then:
 
 ```bash
 echo -n "<the PAT>" | gcloud secrets create csrsupport-github-pat \
@@ -191,9 +199,9 @@ terraform apply
 This provisions (see `infra/modules/cicd/main.tf` for the exact resources): the
 `sa-cicd-build` service account and its least-privilege grants, the `google_cloudbuildv2_connection`
 / `google_cloudbuildv2_repository` linking to GitHub, and three triggers —
-`csrsupport-pr-checks-dev` (on pull_request), `csrsupport-deploy-dev` (on push to `main`, no
+`csrsupport-pr-checks-dev` (on pull_request), `csrsupport-deploy-dev` (on push to `master`, no
 approval gate), and (in the staging/prod environments) `csrsupport-deploy-staging` /
-`csrsupport-deploy-prod` (also on push to `main`, but **approval-gated** — see below). It also
+`csrsupport-deploy-prod` (also on push to `master`, but **approval-gated** — see below). It also
 creates the Artifact Registry repo, the Agent Engine staging bucket, and the migration Cloud
 Run Job (with a placeholder image).
 
@@ -220,7 +228,7 @@ provisioned yet, so this asymmetry is fine for now; revisit if/when they're stoo
 ## 5. Grant build-approval permissions (staging/prod only)
 
 The staging/prod triggers use Cloud Build's native `approval_config.approval_required` (plan
-§6.3's "manual approval (Dana/eng lead)") — a build queues on push to `main` but sits in
+§6.3's "manual approval (Dana/eng lead)") — a build queues on push to `master` but sits in
 `PENDING_APPROVAL` until someone approves it. Grant that specifically:
 
 ```bash
@@ -239,7 +247,7 @@ Two pairs of values are circular on a from-scratch environment: the BFF's
 `AGENT_ENGINE_RESOURCE_NAME` needs an Agent Engine resource that only exists after the first
 successful `csrsupport-deploy-dev` run. Break the cycle in this order:
 
-1. Push to `main` (or `gcloud builds triggers run csrsupport-deploy-dev-... --branch=main`) —
+1. Push to `master` (or `gcloud builds triggers run csrsupport-deploy-dev-... --branch=master`) —
    the first run's `deploy-bff` step will set `AGENT_ENGINE_RESOURCE_NAME` correctly (it reads
    `/workspace/agent_engine_resource_name.txt`, written earlier in the same build by
    `deploy_agent_engine.py`), so this part self-resolves on the very first CI/CD run.
