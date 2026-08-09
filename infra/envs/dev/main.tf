@@ -276,3 +276,11 @@ output "agent_engine_staging_bucket" {
 output "cicd_service_account_email" {
   value = module.cicd.cicd_service_account_email
 }
+
+# The runbook (§6 step 2) says `terraform output` gives the IAP backend
+# service ID to derive iap_expected_audience from -- true only once this
+# is re-exported at the env level, since infra/modules/iap's own output
+# only exists at the module scope.
+output "iap_backend_service_id" {
+  value = module.iap.backend_service_id
+}
