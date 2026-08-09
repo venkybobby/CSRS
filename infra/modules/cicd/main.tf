@@ -96,7 +96,12 @@ resource "google_project_iam_member" "cicd_logging_writer" {
 
 resource "google_storage_bucket_iam_member" "cicd_staging_bucket_writer" {
   bucket = var.staging_bucket_name
-  role   = "roles/storage.objectAdmin" # scoped to the one staging bucket, not project-wide storage.admin
+  # storage.admin, not objectAdmin -- objectAdmin only covers storage.objects.*,
+  # but the Vertex AI SDK's staging-bucket check in agent_engines.create() calls
+  # storage.buckets.get (bucket-level metadata), which objectAdmin doesn't grant.
+  # Still scoped to just this one bucket via google_storage_bucket_iam_member,
+  # not project-wide storage.admin -- found via a live deploy-agent-engine 403.
+  role   = "roles/storage.admin"
   member = "serviceAccount:${google_service_account.cicd.email}"
 }
 
