@@ -69,6 +69,17 @@ resource "google_cloud_run_v2_service" "service" {
       }
     }
   }
+
+  # cloudbuild/deploy.yaml's `gcloud run deploy --image=...` owns the image
+  # after the placeholder-image bootstrap apply -- without this, any later
+  # `terraform apply` (for an unrelated change elsewhere in this env) would
+  # revert a live, CI/CD-deployed image back to var.image's placeholder
+  # default, since terraform.tfvars was never meant to track every deploy's
+  # image tag. Found live: a plan for IAP/LB changes also proposed reverting
+  # both bff and frontend back to us-docker.pkg.dev/cloudrun/container/hello.
+  lifecycle {
+    ignore_changes = [template[0].containers[0].image]
+  }
 }
 
 output "service_name" {

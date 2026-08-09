@@ -73,6 +73,13 @@ resource "google_cloud_run_v2_job" "job" {
       }
     }
   }
+
+  # cloudbuild/deploy.yaml's `gcloud run jobs update --image=...` owns the
+  # image after the placeholder-image bootstrap apply -- same reasoning as
+  # infra/modules/cloud_run's identical lifecycle block.
+  lifecycle {
+    ignore_changes = [template[0].template[0].containers[0].image]
+  }
 }
 
 output "job_name" {
