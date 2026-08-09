@@ -10,6 +10,7 @@ integration tests and the running agent.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -20,11 +21,41 @@ from csr_agent.calculator.types import RateInfo
 from csr_agent.data.db import get_engine
 from csr_agent.tools.models import ProcedureCandidate, ProcedureMatchResult
 
-# Fixed thresholds (RapidFuzz token_sort_ratio, 0-100). Code-owned, not model
+# Fixed thresholds (RapidFuzz token_set_ratio, 0-100). Code-owned, not model
 # judgment -- see plan §2.1.
+#
+# Scorer choice matters a lot here and was wrong on the first pass:
+# token_sort_ratio (edit-distance over the *whole* string) scores a real CSR
+# question like "M1002 wants an MRI on his knee, what does he owe?" against
+# the short alias "mri on his knee" way too low (~47) to ever match, because
+# it penalizes the surrounding filler words as if they were errors.
+# partial_token_set_ratio "fixes" that but overcorrects dangerously: it
+# scored "MRI on his back, low back pain" as a 100.0 match against "mri
+# brain" (wrong body part) just because both share the token "mri" --
+# unacceptable here, a wrong CPT code is a wrong rate and a wrong prior-auth
+# determination, not just a bad UX. Plain token_set_ratio on a
+# member-ID-and-punctuation-stripped query (see _normalize_query) is the one
+# that got every case right in manual verification: it tolerates arbitrary
+# extra words (names, "what does he owe") because it compares token *sets*,
+# but still requires the actual distinguishing word (knee/back/brain/...) to
+# be present, so it doesn't confuse similar procedures the way the partial_
+# variant does.
 MATCH_THRESHOLD = 90
 CLARIFY_THRESHOLD = 60
 MAX_CLARIFY_CANDIDATES = 4
+
+# Matches "M1002", "m1234", etc. so a member ID embedded in a free-text
+# question doesn't get treated as a token to fuzzy-match against procedure
+# names.
+_MEMBER_ID_TOKEN_RE = re.compile(r"\bm\d{3,}\b")
+_NON_ALPHANUMERIC_RE = re.compile(r"[^a-z0-9\s]")
+
+
+def _normalize_query(query: str) -> str:
+    q = query.strip().lower()
+    q = _MEMBER_ID_TOKEN_RE.sub(" ", q)
+    q = _NON_ALPHANUMERIC_RE.sub(" ", q)
+    return " ".join(q.split())
 
 # Procedures that are ALWAYS routed to clarification regardless of fuzzy
 # score, because a single common-language term maps to genuinely different
@@ -72,7 +103,7 @@ def match_procedure(query: str, catalog: list[RateSheetRow] | None = None) -> Pr
     if catalog is None:
         catalog = _load_catalog_from_db()
 
-    normalized = query.strip().lower()
+    normalized = _normalize_query(query)
 
     forced = next((term for term in AMBIGUOUS_ALWAYS if term in normalized), None)
     if forced is not None:
@@ -95,7 +126,7 @@ def match_procedure(query: str, catalog: list[RateSheetRow] | None = None) -> Pr
     if not choices:
         return ProcedureMatchResult(query=query, status="NOT_ON_FILE")
 
-    match = process.extractOne(normalized, choices.keys(), scorer=fuzz.token_sort_ratio)
+    match = process.extractOne(normalized, choices.keys(), scorer=fuzz.token_set_ratio)
     if match is None:
         return ProcedureMatchResult(query=query, status="NOT_ON_FILE")
 
@@ -113,7 +144,7 @@ def match_procedure(query: str, catalog: list[RateSheetRow] | None = None) -> Pr
 
     if score >= CLARIFY_THRESHOLD:
         top = process.extract(
-            normalized, choices.keys(), scorer=fuzz.token_sort_ratio, limit=MAX_CLARIFY_CANDIDATES
+            normalized, choices.keys(), scorer=fuzz.token_set_ratio, limit=MAX_CLARIFY_CANDIDATES
         )
         seen_cpt: set[str] = set()
         candidates = []

@@ -94,3 +94,56 @@ def test_gibberish_query_is_not_on_file(catalog):
 def test_empty_catalog_never_crashes():
     result = match_procedure("anything", catalog=[])
     assert result.status == "NOT_ON_FILE"
+
+
+# The next two regression classes were caught by the eval harness running
+# for real against Cloud Build, not by any test written before that --
+# short isolated phrases ("MRI on his knee") all passed while the actual
+# demo-script sentences and a cross-procedure discrimination check both
+# failed. See rate_matcher.py's MATCH_THRESHOLD/scorer comment for the full
+# story of what didn't work (token_sort_ratio, partial_token_set_ratio)
+# before landing on token_set_ratio + query normalization.
+
+
+def test_full_sentence_demo_script_questions_still_match(catalog):
+    """The eval harness's actual question text -- a full CSR sentence with
+    a member ID and filler phrasing, not an isolated phrase -- must match
+    the same way the isolated phrase does. token_sort_ratio (the original
+    scorer) scored these around 35-47 against the right alias, since it
+    penalizes surrounding filler words as if they were edit-distance
+    errors; below MATCH_THRESHOLD, so a real CSR question would have
+    incorrectly returned NOT_ON_FILE for procedures genuinely on file."""
+    cases = [
+        ("M1002 wants an MRI on his knee, what does he owe?", "73721"),
+        ("What's James Whitaker M1004 looking at for knee surgery?", "29881"),
+        ("Same question for M1007 and M1006 -- knee surgery", "29881"),
+    ]
+    for question, expected_cpt in cases:
+        result = match_procedure(question, catalog=catalog)
+        assert result.status == "MATCHED", f"{question!r} -> {result.status} (expected MATCHED)"
+        assert result.cpt_code == expected_cpt, f"{question!r} -> cpt={result.cpt_code}"
+
+
+def test_does_not_cross_match_similar_body_part_procedures(catalog):
+    """A real safety issue, not just a UX nit: partial_token_set_ratio (an
+    earlier candidate fix for the sentence-matching problem above) scored
+    'MRI on his back, low back pain' as a 100.0 match against 'mri brain'
+    -- wrong body part -- purely because both share the token 'mri'.
+    Confusing brain/back/knee MRIs would mean the wrong CPT, the wrong
+    negotiated rate, and the wrong prior-auth determination. The
+    distinguishing word (back/brain/knee) must actually drive the match,
+    not just presence of the shared 'mri' token."""
+    back = match_procedure("MRI on his back, low back pain", catalog=catalog)
+    assert back.status == "MATCHED"
+    assert back.cpt_code == "72148"  # MRI Low Back, not brain (70551) or knee (73721)
+
+    brain = match_procedure("MRI on his brain please", catalog=catalog)
+    assert brain.status == "MATCHED"
+    assert brain.cpt_code == "70551"
+
+
+def test_no_procedure_in_query_does_not_accidentally_match(catalog):
+    """A termed-member-style question with no procedure mentioned at all
+    must not accidentally fuzzy-match some unrelated catalog entry."""
+    result = match_procedure("M1005 -- anything, what do they owe?", catalog=catalog)
+    assert result.status == "NOT_ON_FILE"
