@@ -9,7 +9,7 @@ test_m1006_and_m1007_knee_surgery_demo_script_case below).
 from decimal import Decimal
 
 from csr_agent.calculator.family import family_tier_cost
-from csr_agent.calculator.types import MemberAccumulators, PlanTerms, RateInfo
+from csr_agent.calculator.types import MemberAccumulators, RateInfo
 
 from .conftest import accumulators
 

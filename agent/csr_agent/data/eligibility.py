@@ -8,6 +8,7 @@ import re
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from typing import Literal
 
 from sqlalchemy import text
 
@@ -34,7 +35,7 @@ class PlanRow:
 
 def _derive_status(
     db_status: str, coverage_end: date | None, today: date
-) -> tuple[str, str | None]:
+) -> tuple[Literal["ACTIVE", "TERMED", "ACTIVE_FUTURE_TERM"], str | None]:
     """Story 1: termed members are always blocked, regardless of phrasing.
     Active members whose coverage is scheduled to end (but hasn't yet) get a
     visible warning alongside their estimate, not a block."""

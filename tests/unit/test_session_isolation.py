@@ -2,7 +2,7 @@
 under tests/unit/ rather than tests/integration/ (the plan's illustrative
 path) since it needs no database or deployed Agent Engine resource.
 """
-from app.agent_client import SESSION_IDLE_TIMEOUT_SECONDS, SessionState, next_session
+from app.agent_client import SESSION_IDLE_TIMEOUT_SECONDS, next_session
 
 
 def test_first_query_in_a_tab_always_mints_a_new_session():

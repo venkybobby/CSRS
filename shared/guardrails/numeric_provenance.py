@@ -20,6 +20,7 @@ images without pulling in either service's full dependency tree.
 """
 from __future__ import annotations
 
+import contextlib
 import re
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
@@ -71,10 +72,8 @@ def _collect_decimal_values(obj) -> set[Decimal]:
     elif isinstance(obj, (int, float)):
         found.add(Decimal(str(obj)).quantize(CENTS))
     elif isinstance(obj, str):
-        try:
+        with contextlib.suppress(InvalidOperation):
             found.add(Decimal(obj).quantize(CENTS))
-        except InvalidOperation:
-            pass
     return found
 
 

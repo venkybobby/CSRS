@@ -9,7 +9,6 @@ is a documented placeholder that individual-tier tests never read.
 from decimal import Decimal
 
 import pytest
-
 from csr_agent.calculator.types import MemberAccumulators, PlanTerms, RateInfo
 
 UNUSED_FAMILY_PLACEHOLDER = Decimal("999999.00")

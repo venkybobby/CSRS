@@ -12,10 +12,10 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import csr_agent.data.db as db_module
 import pytest
 from sqlalchemy import create_engine, text
 
-import csr_agent.data.db as db_module
 from db.seed.seed import seed
 
 REPO_ROOT = Path(__file__).resolve().parents[2]

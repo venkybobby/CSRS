@@ -1,9 +1,12 @@
 -r agent/requirements.txt
 -r bff/requirements.txt
-pytest==8.3.3
-pytest-asyncio==0.24.0
-pytest-mock==3.14.0
-ruff==0.7.1
-mypy==1.13.0
-pyyaml==6.0.2
-psycopg2-binary==2.9.10
+# Pinned to the same verified-resolved set as agent/bff's requirements.txt
+# (see agent/requirements.txt's header) -- these had never actually been
+# installed together with google-adk before and needed re-verifying too.
+pytest==9.1.1
+pytest-asyncio==1.4.0
+pytest-mock==3.15.1
+ruff==0.16.2
+mypy==2.3.0
+pyyaml==6.0.3
+psycopg2-binary==2.9.12

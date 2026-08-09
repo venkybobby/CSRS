@@ -23,32 +23,40 @@ import os
 from pathlib import Path
 
 import vertexai
+from csr_agent.agent import root_agent
 from vertexai import agent_engines
 from vertexai.agent_engines import AdkApp
-
-from csr_agent.agent import root_agent
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 REQUIREMENTS_FILE = REPO_ROOT / "agent" / "requirements.txt"
 
 
-def _env(name: str, required: bool = True, default: str | None = None) -> str | None:
-    value = os.environ.get(name, default)
-    if required and not value:
+def _required_env(name: str) -> str:
+    value = os.environ.get(name)
+    if not value:
         raise SystemExit(f"Required environment variable {name} is not set")
     return value
 
 
+def _env_or_default(name: str, default: str) -> str:
+    # Return type is always `str` (never None) since `default` is -- unlike
+    # the single required-vs-optional `_env()` helper this replaced, whose
+    # `str | None` return type didn't actually narrow to `str` for the
+    # optional-with-a-string-default call sites, and mypy correctly flagged
+    # every downstream int()/dict-value use of those as a str|None mismatch.
+    return os.environ.get(name) or default
+
+
 def main() -> None:
-    project = _env("GOOGLE_CLOUD_PROJECT")
-    location = _env("GOOGLE_CLOUD_LOCATION")
-    staging_bucket = _env("STAGING_BUCKET")
-    service_account = _env("AGENT_ENGINE_SERVICE_ACCOUNT")
-    cloud_sql_instance = _env("CLOUD_SQL_INSTANCE_CONNECTION_NAME")
-    cloud_sql_iam_user = _env("CLOUD_SQL_IAM_USER")
-    display_name = _env("AGENT_ENGINE_DISPLAY_NAME", required=False, default="csr-cost-agent")
-    min_instances = int(_env("AGENT_ENGINE_MIN_INSTANCES", required=False, default="0"))
-    max_instances = int(_env("AGENT_ENGINE_MAX_INSTANCES", required=False, default="10"))
+    project = _required_env("GOOGLE_CLOUD_PROJECT")
+    location = _required_env("GOOGLE_CLOUD_LOCATION")
+    staging_bucket = _required_env("STAGING_BUCKET")
+    service_account = _required_env("AGENT_ENGINE_SERVICE_ACCOUNT")
+    cloud_sql_instance = _required_env("CLOUD_SQL_INSTANCE_CONNECTION_NAME")
+    cloud_sql_iam_user = _required_env("CLOUD_SQL_IAM_USER")
+    display_name = _env_or_default("AGENT_ENGINE_DISPLAY_NAME", "csr-cost-agent")
+    min_instances = int(_env_or_default("AGENT_ENGINE_MIN_INSTANCES", "0"))
+    max_instances = int(_env_or_default("AGENT_ENGINE_MAX_INSTANCES", "10"))
 
     vertexai.init(project=project, location=location, staging_bucket=staging_bucket)
 
@@ -61,7 +69,12 @@ def main() -> None:
     app = AdkApp(agent=root_agent, enable_tracing=True)
 
     remote_app = agent_engines.create(
-        agent_engine=app,
+        # AdkApp is Google's own documented wrapper for exactly this call
+        # (has stream_query/async_stream_query at runtime -- verified via
+        # `dir(AdkApp)`), but isn't included in agent_engines.create()'s
+        # declared agent_engine Union type -- a stub gap in
+        # google-cloud-aiplatform, not a bug here.
+        agent_engine=app,  # type: ignore[arg-type]
         display_name=display_name,
         requirements=requirements,
         # csr_agent.pipeline.estimate imports from shared.messages (and

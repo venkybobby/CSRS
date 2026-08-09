@@ -1,6 +1,12 @@
-fastapi==0.115.4
-uvicorn[standard]==0.32.0
-pydantic==2.9.2
-google-auth==2.35.0
-google-cloud-aiplatform==1.71.1
-httpx==0.27.2
+# Pinned to the same resolved-compatible set as agent/requirements.txt --
+# see that file's header. pydantic and google-cloud-aiplatform in
+# particular must match (or at least not conflict with) agent/'s pins,
+# since requirements-dev.txt installs both files into one environment for
+# CI/local dev, even though bff/ and agent/ ship as separate Docker images
+# in production and never share a real runtime environment.
+fastapi==0.141.1
+uvicorn[standard]==0.52.1
+pydantic==2.13.4
+google-auth==2.56.3
+google-cloud-aiplatform==1.163.0
+httpx==0.28.1

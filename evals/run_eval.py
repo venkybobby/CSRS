@@ -50,14 +50,15 @@ def run_deterministic(cases: list[dict]) -> list[tuple[str, str | None]]:
     runs), or the standard resolve-then-price path."""
     from csr_agent.data.rate_matcher import match_procedure
     from csr_agent.pipeline.estimate import estimate_member_cost
+
     from shared.messages import rate_not_found_message
 
-    audit_ctx = dict(
-        csr_user_id="eval-harness@meridianhealthplans.com",
-        session_id="eval-session",
-        invocation_id="eval-invocation",
-        trace_id="eval-trace",
-    )
+    audit_ctx = {
+        "csr_user_id": "eval-harness@meridianhealthplans.com",
+        "session_id": "eval-session",
+        "invocation_id": "eval-invocation",
+        "trace_id": "eval-trace",
+    }
 
     results: dict[str, dict] = {}
     outcomes: list[tuple[str, str | None]] = []
@@ -105,7 +106,7 @@ def run_deterministic(cases: list[dict]) -> list[tuple[str, str | None]]:
             results[case_id] = result_dict
             _check_case(case, result_dict, outcomes)
 
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             outcomes.append((case_id, f"exception: {exc!r}"))
 
     # Cross-case checks

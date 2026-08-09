@@ -7,7 +7,6 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
-
 from csr_agent.data.rate_matcher import RateSheetRow, match_procedure
 
 SEED_PATH = Path(__file__).resolve().parents[2] / "db" / "seed" / "rate_sheet.json"

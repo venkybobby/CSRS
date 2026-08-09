@@ -18,7 +18,6 @@ from csr_agent.calculator.individual import individual_tier_cost
 from csr_agent.data.audit import write_audit_log
 from csr_agent.data.eligibility import get_eligibility, get_member_accumulators, get_plan
 from csr_agent.data.rate_matcher import get_rate
-from shared.messages import rate_not_found_message
 from csr_agent.tools.models import (
     CostEstimateResult,
     ExclusionResult,
@@ -29,6 +28,23 @@ from csr_agent.tools.models import (
     StandardCostResult,
     TermedMemberResult,
 )
+from shared.messages import rate_not_found_message
+
+# Narrower than the public CostEstimateResult union: this pipeline never
+# produces NeedsClarificationResult (that variant only exists at the BFF
+# layer, synthesized from resolve_procedure's own output -- see
+# bff/app/main.py::_extract_agent_turn). Every branch below has an
+# audit_id; NeedsClarificationResult doesn't, which is exactly what mypy
+# caught when `result` was typed against the full public union instead of
+# this one.
+PipelineResult = (
+    MemberNotFoundResult
+    | TermedMemberResult
+    | ExclusionResult
+    | RateNotFoundResult
+    | PreventiveZeroCostResult
+    | StandardCostResult
+)
 
 
 def _log(
@@ -37,7 +53,7 @@ def _log(
     member_id: str,
     cpt_code: str | None,
     response_type: str,
-    result: "CostEstimateResult",
+    result: PipelineResult,
     source_data_snapshot: dict,
     csr_user_id: str,
     session_id: str,
@@ -72,7 +88,7 @@ def estimate_member_cost(
     elig = get_eligibility(member_id, today=today)
 
     if not elig.found:
-        result = MemberNotFoundResult(
+        result: PipelineResult = MemberNotFoundResult(
             member_id=member_id,
             message=f"No member found for ID '{member_id}'. Do not estimate a cost.",
             audit_id=uuid4(),
@@ -105,6 +121,11 @@ def estimate_member_cost(
         )
         return result
 
+    # elig.found is True here (the not-found branch above already returned),
+    # so plan_id is guaranteed non-None on a found member row -- but that
+    # invariant lives in the EligibilityResult model's optional typing, not
+    # something mypy can see through the .found check alone.
+    assert elig.plan_id is not None
     plan = get_plan(elig.plan_id)
     if plan is None:
         raise RuntimeError(f"Member {member_id} references unknown plan_id {elig.plan_id!r}")

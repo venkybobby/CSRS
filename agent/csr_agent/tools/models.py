@@ -12,9 +12,9 @@ immediately instead of being silently dropped.
 """
 from __future__ import annotations
 
-from decimal import Decimal
 from datetime import date
-from typing import Annotated, Literal, Union
+from decimal import Decimal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
@@ -159,14 +159,12 @@ class AgentResponse(StrictModel):
 
 
 CostEstimateResult = Annotated[
-    Union[
-        MemberNotFoundResult,
-        TermedMemberResult,
-        ExclusionResult,
-        RateNotFoundResult,
-        PreventiveZeroCostResult,
-        StandardCostResult,
-        NeedsClarificationResult,
-    ],
+    MemberNotFoundResult
+    | TermedMemberResult
+    | ExclusionResult
+    | RateNotFoundResult
+    | PreventiveZeroCostResult
+    | StandardCostResult
+    | NeedsClarificationResult,
     Field(discriminator="response_type"),
 ]

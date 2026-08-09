@@ -12,16 +12,15 @@ from unittest.mock import patch
 from uuid import UUID
 
 import pytest
+from csr_agent.pipeline.estimate import estimate_member_cost
 from sqlalchemy import create_engine, text
 
-from csr_agent.pipeline.estimate import estimate_member_cost
-
-AUDIT_CTX = dict(
-    csr_user_id="csr.jordan@meridianhealthplans.com",
-    session_id="test-session-1",
-    invocation_id="test-invocation-1",
-    trace_id="test-trace-1",
-)
+AUDIT_CTX = {
+    "csr_user_id": "csr.jordan@meridianhealthplans.com",
+    "session_id": "test-session-1",
+    "invocation_id": "test-invocation-1",
+    "trace_id": "test-trace-1",
+}
 
 
 def _audit_row(db_url: str, audit_id: UUID) -> dict:

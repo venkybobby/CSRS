@@ -14,6 +14,8 @@ this module alone is not sufficient, and is not meant to be.
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping
+from typing import Any
 
 from fastapi import HTTPException, Request
 from google.auth.transport import requests as google_auth_requests
@@ -31,7 +33,7 @@ class IAPVerificationError(Exception):
     pass
 
 
-def verify_iap_jwt(jwt_value: str, expected_audience: str) -> dict:
+def verify_iap_jwt(jwt_value: str, expected_audience: str) -> Mapping[str, Any]:
     """Verifies signature + audience/issuer of an IAP-issued JWT. Returns
     the decoded claims (including 'email') on success; raises
     IAPVerificationError on any failure -- expired, wrong audience, bad
@@ -45,7 +47,7 @@ def verify_iap_jwt(jwt_value: str, expected_audience: str) -> dict:
             audience=expected_audience,
             certs_url=IAP_PUBLIC_KEY_CERTS_URL,
         )
-    except Exception as exc:  # noqa: BLE001 -- deliberately broad, see docstring
+    except Exception as exc:
         raise IAPVerificationError(str(exc)) from exc
 
 

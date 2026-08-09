@@ -1,7 +1,16 @@
-google-adk==0.5.0
-google-cloud-aiplatform==1.71.1
-pydantic==2.9.2
+# Pinned to a mutually-compatible set resolved and verified together with
+# bff/requirements.txt + requirements-dev.txt (both get installed into the
+# same environment in CI -- see requirements-dev.txt's docstring-equivalent
+# note). The original pins here (google-adk==0.5.0, google-cloud-
+# aiplatform==1.71.1) were guessed independently and conflicted:
+# google-adk 0.5.0 hard-required google-cloud-aiplatform>=1.87.0. Verified
+# 2026-08-08 against the actual code (agent construction, tool schemas,
+# deploy script, full unit suite) with `pip install` in a clean venv --
+# not just "these numbers exist on PyPI."
+google-adk==2.6.3
+google-cloud-aiplatform==1.163.0
+pydantic==2.13.4
 rapidfuzz==3.10.1
-cloud-sql-python-connector[pg8000]==1.14.0
-sqlalchemy==2.0.35
+cloud-sql-python-connector[pg8000]==1.21.0
+sqlalchemy==2.0.51
 python-dateutil==2.9.0.post0

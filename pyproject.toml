@@ -1,0 +1,24 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 115
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM", "RUF"]
+ignore = [
+    # FastAPI's Depends()-as-default-argument is the documented, correct
+    # pattern (https://fastapi.tiangolo.com/tutorial/dependencies/) -- B008
+    # exists to catch accidental mutable-default-style bugs in general
+    # Python, not this. Silencing project-wide rather than noqa'ing every
+    # route handler.
+    "B008",
+]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+# Mirrors pytest.ini's `pythonpath = . agent bff` -- agent/ and bff/ are
+# import roots (so csr_agent.*/app.* resolve), and . is a root too (so
+# shared.*/db.*/evals.* resolve), all as one consistent package tree
+# instead of mypy discovering shared/ twice under different inferred roots.
+mypy_path = ["agent", "bff", "."]
+explicit_package_bases = true
