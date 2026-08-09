@@ -41,11 +41,6 @@ variable "env_vars" {
   default = {}
 }
 
-variable "vpc_connector_id" {
-  description = "Direct VPC egress / Serverless VPC Access connector for reaching Cloud SQL over private IP."
-  type        = string
-}
-
 resource "google_cloud_run_v2_service" "service" {
   project  = var.project_id
   name     = var.service_name
@@ -60,13 +55,6 @@ resource "google_cloud_run_v2_service" "service" {
     scaling {
       min_instance_count = var.min_instances
       max_instance_count = var.max_instances
-    }
-
-    vpc_access {
-      network_interfaces {
-        network = var.vpc_connector_id
-      }
-      egress = "PRIVATE_RANGES_ONLY"
     }
 
     containers {

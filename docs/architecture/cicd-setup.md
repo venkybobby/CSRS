@@ -120,6 +120,60 @@ Versioning isn't optional polish here — it's the only rollback path if a bad `
 state. Repeat for staging/prod's own `*-tfstate` bucket names only once those environments'
 projects actually exist.
 
+## 2.6. One-time manual: create the Supabase project and bootstrap DB roles
+
+Dev's database is Supabase Postgres, not Cloud SQL — a deliberate cost swap (Cloud SQL's
+`db-custom-2-8192` tier runs ~$100+/mo continuously billed, plus ~$8-13/mo for a VPC connector
+it also requires; a Supabase project on this org's Pro plan is $25/mo flat, shared across every
+project in the org). Staging/prod are unaffected and still use Cloud SQL (`infra/envs/{staging,prod}`,
+unchanged) — they aren't provisioned yet, so this asymmetry is fine for now.
+
+None of this is Terraform-managed — Supabase project creation and role grants happen directly
+against Supabase (dashboard or MCP), then the resulting connection strings get stored in GCP
+Secret Manager for Cloud Run/Cloud Build to read, the same manual pattern already used for
+`github_pat_secret_id` above. **This must run before §3's `terraform apply`** — unlike the old
+Cloud SQL IAM bootstrap (which ran after `apply`, since Cloud SQL and its IAM users didn't
+exist until Terraform created them), `main.tf` now has `google_secret_manager_secret_iam_member`
+resources that reference these two secrets by name, so `apply` fails outright ("secret not
+found") if they don't already exist.
+
+1. **Create the project.** Org `SARO` on Supabase already has 2 free-tier projects
+   (`SARO`, `cms-coverage-rag`) — creating a third requires either pausing one of those or
+   upgrading the org to the Pro plan ($25/mo flat, covers all projects in the org). Name it
+   `csrsupport-dev`, region `us-west-1` (matches the org's other projects).
+
+2. **Bootstrap two least-privilege Postgres roles**, mirroring the same split Cloud SQL used
+   (`db/bootstrap_iam_grants.sql`'s model, now password-based instead of GCP-IAM-based) — run
+   [`db/bootstrap_supabase_roles.sql`](../../db/bootstrap_supabase_roles.sql) once against the
+   new project (Supabase SQL Editor, or the `execute_sql` MCP tool) after filling in two
+   generated passwords:
+   - `csrsupport_migrate` — DDL rights, used only by the migration Cloud Run Job.
+   - `csrsupport_agent_engine` — SELECT/INSERT-only, used by the running agent. Never used for
+     schema changes, matching the same reasoning `bootstrap_iam_grants.sql` documents.
+
+3. **Store both as full `postgresql+pg8000://` connection strings** in Secret Manager, using
+   Supavisor's **session-mode** pooler (port `5432`, not the transaction-mode `6543`) — Cloud
+   Run's scale-to-zero means many container instances can open connections near-simultaneously,
+   which is what pooling is for, but transaction mode drops session-level state (e.g.
+   `csr_agent.data.db.get_engine()`'s `isolation_level="REPEATABLE READ"`) between transactions,
+   which session mode preserves. The pooler username is **not** just the role name — Supavisor
+   multiplexes every project through one shared host, so it must be `<role>.<project-ref>`
+   (e.g. `csrsupport_migrate.tmhuklbjpbblnwoiyjjo`), confirmed against Supabase's own docs
+   rather than assumed:
+
+   ```bash
+   echo -n "postgresql+pg8000://csrsupport_migrate.<project-ref>:<password>@aws-0-us-west-1.pooler.supabase.com:5432/postgres" | \
+       gcloud secrets create csrsupport-migrate-dev-db-url --project=csrs-504922 --data-file=-
+   echo -n "postgresql+pg8000://csrsupport_agent_engine.<project-ref>:<password>@aws-0-us-west-1.pooler.supabase.com:5432/postgres" | \
+       gcloud secrets create csrsupport-agent-engine-dev-db-url --project=csrs-504922 --data-file=-
+   ```
+
+   Set `migrate_db_url_secret_id = "csrsupport-migrate-dev-db-url"` and
+   `agent_engine_db_url_secret_id = "csrsupport-agent-engine-dev-db-url"` in `terraform.tfvars`
+   — `terraform apply` (§3) grants `sa-migrate-dev` and `sa-cicd-build-dev` (which reads the
+   agent-engine secret at deploy time to inject `DATABASE_URL` into `deploy_agent_engine.py` —
+   see `cloudbuild/deploy.yaml`'s `availableSecrets`) accessor IAM on the matching secret.
+
 ## 3. Terraform apply
 
 ```bash
@@ -140,41 +194,28 @@ This provisions (see `infra/modules/cicd/main.tf` for the exact resources): the
 `csrsupport-pr-checks-dev` (on pull_request), `csrsupport-deploy-dev` (on push to `main`, no
 approval gate), and (in the staging/prod environments) `csrsupport-deploy-staging` /
 `csrsupport-deploy-prod` (also on push to `main`, but **approval-gated** — see below). It also
-creates the Artifact Registry repo, the Agent Engine staging bucket, the migration Cloud Run
-Job (with a placeholder image), and `sa-migrate`'s Cloud SQL IAM database user.
+creates the Artifact Registry repo, the Agent Engine staging bucket, and the migration Cloud
+Run Job (with a placeholder image).
 
-**Also provisioned automatically now** (`infra/modules/networking`, added after this doc's
-original version — previously `vpc_network_id`/`vpc_connector_id` were undocumented required
-inputs with nothing that created them): the custom-mode VPC, its subnet, the Cloud SQL
-private-services peering range and connection, and the Serverless VPC Access connector. No
-separate manual networking step exists anymore. `bff_image`/`frontend_image` also carry a
-placeholder default (`us-docker.pkg.dev/cloudrun/container/hello`) so this first `apply`
-doesn't fail on a Cloud Run requirement that an image already exist — `cloudbuild/deploy.yaml`
-overwrites both with real images on the first CI/CD deploy run.
+`bff_image`/`frontend_image` also carry a placeholder default
+(`us-docker.pkg.dev/cloudrun/container/hello`) so this first `apply` doesn't fail on a Cloud
+Run requirement that an image already exist — `cloudbuild/deploy.yaml` overwrites both with
+real images on the first CI/CD deploy run.
 
 VPC-SC stays off (`enable_vpc_sc` defaults `false`) — leave `terraform.tfvars` alone on that
 var unless `csrs-504922` later joins a GCP Organization.
 
-## 4. One-time manual: bootstrap the IAM database grants
-
-A fresh Cloud SQL instance's IAM database users start with **zero privileges** — something has
-to grant the first ones, and that something can't be `sa-migrate` itself (chicken-and-egg) or
-Terraform (Cloud SQL Postgres table/schema grants aren't part of `google_sql_user`'s Terraform
-resource). Connect once with a privileged identity and run
-[`db/bootstrap_iam_grants.sql`](../../db/bootstrap_iam_grants.sql) (fill in the two placeholder
-identities from `terraform output migrate_service_account_email` /
-`terraform output agent_engine_service_account_email` first — and remember Cloud SQL IAM
-usernames drop the `.gserviceaccount.com` suffix, e.g.
-`sa-migrate-dev@csrsupport-dev.iam`, not `...iam.gserviceaccount.com`):
-
-```bash
-gcloud sql connect csrsupport-dev --project=csrsupport-dev --user=postgres
-# paste the filled-in contents of db/bootstrap_iam_grants.sql
-```
-
-Skipping this step doesn't fail loudly at `terraform apply` time — it fails later, the first
-time `csrsupport-migrate-dev` actually runs, with a Postgres permission-denied error. Do it
-now.
+**No VPC/networking module for dev.** `infra/modules/networking` (VPC, subnet, private-services
+peering, Serverless VPC Access connector) and `infra/modules/cloud_sql` existed solely to give
+Cloud Run private-IP access to a GCP Cloud SQL instance. Dev's database is Supabase Postgres
+instead (see §2.6, which must run *before* this section — the secret IAM bindings below
+require both secrets to already exist) — reached over the public internet with TLS, like any
+external SaaS Postgres — so neither module is used in `infra/envs/dev`. This was a deliberate
+cost swap: Cloud SQL's `db-custom-2-8192` tier runs ~$100+/mo continuously billed, plus
+~$8-13/mo for the VPC connector's `min_instances = 2`; a Supabase project on this org's Pro
+plan is $25/mo flat, shared across every project in the org rather than per-database.
+Staging/prod still use Cloud SQL (`infra/envs/{staging,prod}`, unchanged) — they aren't
+provisioned yet, so this asymmetry is fine for now; revisit if/when they're stood up for real.
 
 ## 5. Grant build-approval permissions (staging/prod only)
 
@@ -266,8 +307,8 @@ what the tool actually returned.
 | GitHub App install | manual, browser OAuth (§1) |
 | GitHub PAT + Secret Manager | manual (§2) |
 | Terraform state bucket | manual (`gcloud storage buckets create`, once, §2.5) |
-| VPC, subnet, Cloud SQL peering, VPC connector, Cloud SQL, Cloud Run, Artifact Registry, IAM, Cloud Build triggers | `terraform apply` (§3) |
-| IAM database bootstrap grants | manual, once, SQL (§4) |
+| Supabase project + DB role bootstrap + Secret Manager secrets | manual, once, dashboard/SQL/`gcloud` (§2.6, before §3) |
+| Cloud Run, Artifact Registry, IAM, Cloud Build triggers | `terraform apply` (§3) |
 | Build-approver IAM | manual (`gcloud`, §5) |
 | First-deploy circular-dependency fixups | manual, once, `terraform apply` or `gcloud run services update` (§6) |
 | IAP OAuth consent screen (Testing mode, test users) | manual, browser, once (§6.5) |

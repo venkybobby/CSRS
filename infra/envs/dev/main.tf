@@ -84,18 +84,33 @@ variable "github_pat_secret_id" {
   type        = string
 }
 
+# Database is Supabase Postgres (see docs/architecture/cicd-setup.md's
+# Supabase section), not Cloud SQL -- these hold Secret Manager secret
+# names for the two least-privilege DATABASE_URL connection strings,
+# created manually (same pattern as github_pat_secret_id above), never
+# Terraform-managed values, so no password ever lands in state.
+variable "migrate_db_url_secret_id" {
+  description = "Secret Manager secret name holding sa-migrate's Supabase DATABASE_URL (DDL rights), created manually -- see docs/architecture/cicd-setup.md."
+  type        = string
+}
+
+variable "agent_engine_db_url_secret_id" {
+  description = "Secret Manager secret name holding the running agent's Supabase DATABASE_URL (SELECT/INSERT-only), created manually -- see docs/architecture/cicd-setup.md."
+  type        = string
+}
+
+resource "google_secret_manager_secret_iam_member" "agent_engine_db_url_accessor" {
+  project   = var.project_id
+  secret_id = var.agent_engine_db_url_secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${module.cicd.cicd_service_account_email}"
+}
+
 module "vpc_sc" {
   count            = var.enable_vpc_sc ? 1 : 0
   source           = "../../modules/vpc_sc"
   project_id       = var.project_id
   access_policy_id = var.access_policy_id
-}
-
-module "networking" {
-  source      = "../../modules/networking"
-  project_id  = var.project_id
-  region      = var.region
-  environment = "dev"
 }
 
 module "agent_engine_sa" {
@@ -110,20 +125,16 @@ resource "google_service_account" "migrate" {
   display_name = "CSRSupport DB migration runner (dev)"
 }
 
-resource "google_project_iam_member" "migrate_cloud_sql_client" {
-  project = var.project_id
-  role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${google_service_account.migrate.email}"
-}
-
-module "cloud_sql" {
-  source                  = "../../modules/cloud_sql"
-  project_id              = var.project_id
-  region                  = var.region
-  environment             = "dev"
-  vpc_network_id          = module.networking.vpc_network_id
-  agent_engine_iam_member = module.agent_engine_sa.service_account_email
-  migrate_iam_member      = google_service_account.migrate.email
+# Database is Supabase Postgres, not Cloud SQL -- no GCP IAM DB role needed
+# here. sa-migrate's DB identity/privileges live in Supabase itself (see
+# db/bootstrap_supabase_roles.sql); this service account exists only to run
+# the Cloud Run Job and read its DATABASE_URL secret (see
+# csrsupport_migrate_db_url_accessor below).
+resource "google_secret_manager_secret_iam_member" "migrate_db_url_accessor" {
+  project   = var.project_id
+  secret_id = var.migrate_db_url_secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.migrate.email}"
 }
 
 module "artifact_registry" {
@@ -140,10 +151,8 @@ module "migrate_job" {
   job_name               = "csrsupport-migrate-dev"
   image                  = var.migrate_image
   service_account_email  = google_service_account.migrate.email
-  vpc_connector_id       = module.networking.vpc_connector_id
-  env_vars = {
-    CLOUD_SQL_INSTANCE_CONNECTION_NAME = module.cloud_sql.instance_connection_name
-    CLOUD_SQL_IAM_USER                 = google_service_account.migrate.email
+  secret_env_vars = {
+    DATABASE_URL = var.migrate_db_url_secret_id
   }
 }
 
@@ -190,7 +199,6 @@ module "bff_cloud_run" {
   service_account_email  = google_service_account.bff.email
   min_instances          = 0
   max_instances          = 10
-  vpc_connector_id       = module.networking.vpc_connector_id
   env_vars = {
     IAP_EXPECTED_AUDIENCE          = var.iap_expected_audience
     AGENT_ENGINE_RESOURCE_NAME     = var.agent_engine_resource_name
@@ -218,7 +226,6 @@ module "frontend_cloud_run" {
   service_account_email  = google_service_account.frontend.email
   min_instances          = 0
   max_instances          = 5
-  vpc_connector_id       = module.networking.vpc_connector_id
 }
 
 module "iap" {
@@ -244,10 +251,6 @@ module "cicd" {
     "projects/${var.project_id}/serviceAccounts/${module.agent_engine_sa.service_account_email}",
     "projects/${var.project_id}/serviceAccounts/${google_service_account.migrate.email}",
   ]
-}
-
-output "cloud_sql_instance_connection_name" {
-  value = module.cloud_sql.instance_connection_name
 }
 
 output "bff_service_account_email" {

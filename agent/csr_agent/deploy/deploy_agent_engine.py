@@ -13,8 +13,7 @@ Usage:
     GOOGLE_CLOUD_LOCATION=us-central1 \\
     STAGING_BUCKET=gs://csrsupport-dev-agent-engine-staging \\
     AGENT_ENGINE_SERVICE_ACCOUNT=sa-agent-engine@csrsupport-dev.iam.gserviceaccount.com \\
-    CLOUD_SQL_INSTANCE_CONNECTION_NAME=csrsupport-dev:us-central1:csrsupport-db \\
-    CLOUD_SQL_IAM_USER=sa-agent-engine@csrsupport-dev.iam \\
+    DATABASE_URL=postgresql+pg8000://csrsupport_agent_engine:...@db.xxxx.supabase.co:5432/postgres \\
         python agent/csr_agent/deploy/deploy_agent_engine.py
 """
 from __future__ import annotations
@@ -47,13 +46,32 @@ def _env_or_default(name: str, default: str) -> str:
     return os.environ.get(name) or default
 
 
+def _db_env_vars() -> dict[str, str]:
+    """Mirrors csr_agent.data.db.get_engine()'s own DATABASE_URL vs.
+    CLOUD_SQL_INSTANCE_CONNECTION_NAME branch -- dev runs on Supabase
+    (DATABASE_URL, a plain password-based connection string), staging/prod
+    still run on Cloud SQL with IAM auth (the CLOUD_SQL_* pair) until/unless
+    they're migrated too. Exactly one of the two must be set."""
+    database_url = os.environ.get("DATABASE_URL")
+    cloud_sql_instance = os.environ.get("CLOUD_SQL_INSTANCE_CONNECTION_NAME")
+    if database_url and cloud_sql_instance:
+        raise SystemExit("Set only one of DATABASE_URL or CLOUD_SQL_INSTANCE_CONNECTION_NAME, not both")
+    if database_url:
+        return {"DATABASE_URL": database_url}
+    if cloud_sql_instance:
+        return {
+            "CLOUD_SQL_INSTANCE_CONNECTION_NAME": cloud_sql_instance,
+            "CLOUD_SQL_IAM_USER": _required_env("CLOUD_SQL_IAM_USER"),
+        }
+    raise SystemExit("Set DATABASE_URL (Supabase) or CLOUD_SQL_INSTANCE_CONNECTION_NAME (Cloud SQL)")
+
+
 def main() -> None:
     project = _required_env("GOOGLE_CLOUD_PROJECT")
     location = _required_env("GOOGLE_CLOUD_LOCATION")
     staging_bucket = _required_env("STAGING_BUCKET")
     service_account = _required_env("AGENT_ENGINE_SERVICE_ACCOUNT")
-    cloud_sql_instance = _required_env("CLOUD_SQL_INSTANCE_CONNECTION_NAME")
-    cloud_sql_iam_user = _required_env("CLOUD_SQL_IAM_USER")
+    db_env_vars = _db_env_vars()
     display_name = _env_or_default("AGENT_ENGINE_DISPLAY_NAME", "csr-cost-agent")
     min_instances = int(_env_or_default("AGENT_ENGINE_MIN_INSTANCES", "0"))
     max_instances = int(_env_or_default("AGENT_ENGINE_MAX_INSTANCES", "10"))
@@ -87,10 +105,7 @@ def main() -> None:
         # is called, not at deploy time -- there's no import-time check here.
         extra_packages=[str(REPO_ROOT / "agent" / "csr_agent"), str(REPO_ROOT / "shared")],
         service_account=service_account,
-        env_vars={
-            "CLOUD_SQL_INSTANCE_CONNECTION_NAME": cloud_sql_instance,
-            "CLOUD_SQL_IAM_USER": cloud_sql_iam_user,
-        },
+        env_vars=db_env_vars,
         min_instances=min_instances,
         max_instances=max_instances,
     )

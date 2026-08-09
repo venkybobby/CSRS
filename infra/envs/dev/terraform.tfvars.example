@@ -33,3 +33,10 @@ agent_engine_resource_name = ""
 # interactive GitHub OAuth consent in a browser.
 github_app_installation_id = ""
 github_pat_secret_id       = "csrsupport-github-pat"
+
+# Database is Supabase Postgres, not Cloud SQL (see
+# docs/architecture/cicd-setup.md §4) -- these name the two Secret Manager
+# secrets holding least-privilege DATABASE_URL connection strings, created
+# manually the same way as github_pat_secret_id above.
+migrate_db_url_secret_id      = "csrsupport-migrate-dev-db-url"
+agent_engine_db_url_secret_id = "csrsupport-agent-engine-dev-db-url"

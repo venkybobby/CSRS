@@ -20,13 +20,6 @@ resource "google_service_account" "agent_engine" {
   display_name = "CSRSupport Agent Engine runtime (${var.environment})"
 }
 
-# Cloud SQL client + IAM DB auth -- no DB password anywhere (plan §3.2).
-resource "google_project_iam_member" "cloud_sql_client" {
-  project = var.project_id
-  role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${google_service_account.agent_engine.email}"
-}
-
 resource "google_project_iam_member" "cloud_trace_agent" {
   project = var.project_id
   role    = "roles/cloudtrace.agent"

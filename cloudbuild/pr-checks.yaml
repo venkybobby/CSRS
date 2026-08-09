@@ -121,7 +121,7 @@ steps:
 
 substitutions:
   _PR_NUMBER: "local"
-  _ARTIFACT_REGISTRY: "us-central1-docker.pkg.dev/csrsupport-dev/csrsupport"
+  _ARTIFACT_REGISTRY: "us-central1-docker.pkg.dev/csrs-504922/csrsupport"
 
 options:
   logging: CLOUD_LOGGING_ONLY
