@@ -19,14 +19,22 @@ Usage:
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
-import vertexai
-from csr_agent.agent import root_agent
-from vertexai import agent_engines
-from vertexai.agent_engines import AdkApp
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
+# csr_agent isn't importable as-is when this script is invoked as
+# `python agent/csr_agent/deploy/deploy_agent_engine.py` from the repo root
+# (Cloud Build's run-db-migrations pattern) -- Python only puts the script's
+# own directory on sys.path, not agent/. Same fix db/migrations/
+# run_migrations.py already applies for the identical reason.
+sys.path.insert(0, str(REPO_ROOT / "agent"))
+
+import vertexai  # noqa: E402
+from csr_agent.agent import root_agent  # noqa: E402
+from vertexai import agent_engines  # noqa: E402
+from vertexai.agent_engines import AdkApp  # noqa: E402
+
 REQUIREMENTS_FILE = REPO_ROOT / "agent" / "requirements.txt"
 
 
