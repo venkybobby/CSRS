@@ -19,7 +19,9 @@ Usage:
 from __future__ import annotations
 
 import os
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -101,29 +103,51 @@ def main() -> None:
 
     app = AdkApp(agent=root_agent, enable_tracing=True)
 
-    remote_app = agent_engines.create(
-        # AdkApp is Google's own documented wrapper for exactly this call
-        # (has stream_query/async_stream_query at runtime -- verified via
-        # `dir(AdkApp)`), but isn't included in agent_engines.create()'s
-        # declared agent_engine Union type -- a stub gap in
-        # google-cloud-aiplatform, not a bug here.
-        agent_engine=app,  # type: ignore[arg-type]
-        display_name=display_name,
-        requirements=requirements,
+    # vertexai.agent_engines._agent_engines._upload_extra_packages does
+    # `tarfile.add(file)` with no arcname override, so whatever path string
+    # we pass becomes the archive's literal directory structure verbatim
+    # (absolute paths just get their leading "/" stripped -- tarfile's own
+    # normalization, not path-relative-to-cwd or basename-only). csr_agent/
+    # (at agent/csr_agent/) and shared/ (at the repo root) aren't siblings
+    # in this repo, so passing their real absolute paths archives them
+    # nested as workspace/agent/csr_agent/ and workspace/shared/ -- not the
+    # flat csr_agent/ and shared/ the remote unpickler needs to `import
+    # csr_agent` (matching how root_agent was imported locally above).
+    # Confirmed against a live deploy: this nesting mismatch produced
+    # "ModuleNotFoundError: No module named 'csr_agent'" when the deployed
+    # Reasoning Engine unpickled the uploaded agent. tarfile also doesn't
+    # dereference symlinks by default (would archive a dangling link, not
+    # contents), so stage real copies as flat siblings and chdir there --
+    # relative names ("csr_agent", "shared") then archive flat.
+    with tempfile.TemporaryDirectory(prefix="agent_engine_extra_packages_") as staging_dir:
+        shutil.copytree(REPO_ROOT / "agent" / "csr_agent", Path(staging_dir) / "csr_agent")
         # csr_agent.pipeline.estimate imports from shared.messages (and
         # transitively nothing else from shared/ today, but keep the whole
         # package together rather than risk this drifting out of sync again
         # the way it did once already when shared/ was split out of
         # agent/csr_agent/ -- see docs/architecture/plan.md's
-        # "Implementation note"). Without this, the deployed agent fails at
-        # runtime with ModuleNotFoundError the first time estimate_member_cost
-        # is called, not at deploy time -- there's no import-time check here.
-        extra_packages=[str(REPO_ROOT / "agent" / "csr_agent"), str(REPO_ROOT / "shared")],
-        service_account=service_account,
-        env_vars=db_env_vars,
-        min_instances=min_instances,
-        max_instances=max_instances,
-    )
+        # "Implementation note").
+        shutil.copytree(REPO_ROOT / "shared", Path(staging_dir) / "shared")
+        original_cwd = os.getcwd()
+        os.chdir(staging_dir)
+        try:
+            remote_app = agent_engines.create(
+                # AdkApp is Google's own documented wrapper for exactly this
+                # call (has stream_query/async_stream_query at runtime --
+                # verified via `dir(AdkApp)`), but isn't included in
+                # agent_engines.create()'s declared agent_engine Union type
+                # -- a stub gap in google-cloud-aiplatform, not a bug here.
+                agent_engine=app,  # type: ignore[arg-type]
+                display_name=display_name,
+                requirements=requirements,
+                extra_packages=["csr_agent", "shared"],
+                service_account=service_account,
+                env_vars=db_env_vars,
+                min_instances=min_instances,
+                max_instances=max_instances,
+            )
+        finally:
+            os.chdir(original_cwd)
 
     print(f"Deployed Agent Engine resource: {remote_app.resource_name}")
     print("Point the BFF's AGENT_ENGINE_RESOURCE_NAME at this value for this environment.")
