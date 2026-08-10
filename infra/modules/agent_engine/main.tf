@@ -32,6 +32,20 @@ resource "google_project_iam_member" "logging_writer" {
   member  = "serviceAccount:${google_service_account.agent_engine.email}"
 }
 
+# The deployed Reasoning Engine runs AS this service account and calls
+# Vertex AI's own session-management API on itself (create/get session)
+# as part of every single query -- roles/aiplatform.user was previously
+# granted only to sa-bff-run (which calls INTO the Reasoning Engine, a
+# different direction), never to this identity. Without it, every query
+# fails with "403 PERMISSION_DENIED ... aiplatform.sessions.create",
+# thrown from deep inside the deployed agent's own runtime, not the BFF.
+# Found live via the Reasoning Engine's own Cloud Logging output.
+resource "google_project_iam_member" "aiplatform_user" {
+  project = var.project_id
+  role    = "roles/aiplatform.user"
+  member  = "serviceAccount:${google_service_account.agent_engine.email}"
+}
+
 output "service_account_email" {
   value = google_service_account.agent_engine.email
 }
