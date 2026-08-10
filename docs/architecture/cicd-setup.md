@@ -299,6 +299,22 @@ trying to open the frontend URL for the first time. `infra/modules/iap`'s
 `google_cloud_run_v2_service_iam_member.iap_invoker` grants that agent `roles/run.invoker` once
 it exists, but Terraform can't create the agent itself.
 
+## 6.6. One-time manual: load the demo seed data
+
+Never automated anywhere in this pipeline for any environment (Cloud SQL or Supabase) --
+`db/seed/seed.py`'s own docstring says as much: "local/dev/test only -- not run inside the
+Agent Engine or Cloud Run production images." A fresh database has schema (from §3's migration
+job) but zero rows, so every query returns an empty result with no error, easy to mistake for a
+bug rather than missing data:
+
+```bash
+DATABASE_URL="<same format as the migrate secret in §2.6, using csrsupport_migrate's credentials>" \
+    python db/seed/seed.py
+```
+
+Idempotent (truncates and reloads all five tables), safe to rerun any time the demo data needs
+resetting.
+
 ## 7. Run the 5 demo-script scenarios live
 
 Once §6's circular-dependency fixups land and a real `deploy` build has gone green, verify the
