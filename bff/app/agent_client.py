@@ -90,6 +90,23 @@ class AgentEngineClient:
             self._remote_app = agent_engines.get(self._resource_name)
         return self._remote_app
 
+    def create_session(self, *, user_id: str, session_id: str) -> None:
+        """Registers session_id with Vertex AI's session service before it's
+        ever passed to query() -- stream_query() does NOT implicitly create
+        a session on first use, it looks one up and raises
+        google.adk.errors.session_not_found_error.SessionNotFoundError if
+        it doesn't already exist. next_session() mints a fresh UUID and
+        signals is_new_session precisely so the caller can call this first;
+        that signal previously went unused (main.py discarded it into
+        `_is_new`), so every single query failed with a silently-swallowed
+        SessionNotFoundError -- caught deep in the ADK runner's background
+        thread, never surfaced to the BFF's own request handler, producing
+        a clean 200 with an empty message/result instead of an error.
+        AdkApp.create_session (what remote_app proxies to) honors a
+        caller-supplied session_id rather than minting its own."""
+        remote_app = self._get_remote_app()
+        remote_app.create_session(user_id=user_id, session_id=session_id)
+
     def query(self, *, user_id: str, session_id: str, message: str) -> dict:
         """Sends one turn to the agent and returns the final structured
         AgentResponse dict (plan §2.2 layer 2 -- {message, tool_result_ref,

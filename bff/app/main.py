@@ -80,7 +80,9 @@ def query(
         if body.current_session
         else None
     )
-    new_state, _is_new = next_session(current, body.member_id)
+    new_state, is_new = next_session(current, body.member_id)
+    if is_new:
+        client.create_session(user_id=csr_user_id, session_id=new_state.session_id)
 
     raw = client.query(user_id=csr_user_id, session_id=new_state.session_id, message=body.question)
     events = raw.get("events", [])
