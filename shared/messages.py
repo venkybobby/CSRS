@@ -15,3 +15,7 @@ def rate_not_found_message(procedure_as_typed: str) -> str:
         "Please transfer to Member Services supervisor or advise the member "
         "we'll call back with a confirmed cost."
     )
+
+
+def termed_member_message(name: str, coverage_end: str) -> str:
+    return f"{name} is not eligible as of {coverage_end}. Do not quote a cost."

@@ -28,7 +28,7 @@ from csr_agent.tools.models import (
     StandardCostResult,
     TermedMemberResult,
 )
-from shared.messages import rate_not_found_message
+from shared.messages import rate_not_found_message, termed_member_message
 
 # Narrower than the public CostEstimateResult union: this pipeline never
 # produces NeedsClarificationResult (that variant only exists at the BFF
@@ -105,10 +105,8 @@ def estimate_member_cost(
     if elig.status == "TERMED":
         result = TermedMemberResult(
             eligibility=elig,
-            message=(
-                f"{elig.name} is not eligible as of "
-                f"{elig.coverage_end.isoformat() if elig.coverage_end else 'unknown date'}. "
-                "Do not quote a cost."
+            message=termed_member_message(
+                elig.name, elig.coverage_end.isoformat() if elig.coverage_end else "unknown date"
             ),
             audit_id=uuid4(),
         )
