@@ -84,7 +84,15 @@ def query(
     if is_new:
         client.create_session(user_id=csr_user_id, session_id=new_state.session_id)
 
-    raw = client.query(user_id=csr_user_id, session_id=new_state.session_id, message=body.question)
+    # The agent's tools (e.g. check_eligibility) require member_id as a
+    # value the LLM extracts from the conversational message itself --
+    # QueryRequest carries it as a separate structured field (a cleaner
+    # frontend form: distinct Member ID / Question inputs), but nothing
+    # previously re-combined them, so the agent never saw who the CSR was
+    # asking about and just asked for it back. Found live: every query
+    # returned "What is the member's ID?" regardless of the member_id sent.
+    combined_message = f"Member {body.member_id}: {body.question}"
+    raw = client.query(user_id=csr_user_id, session_id=new_state.session_id, message=combined_message)
     events = raw.get("events", [])
 
     agent_message, structured_result, audit_id, tool_payloads = _extract_agent_turn(events)
