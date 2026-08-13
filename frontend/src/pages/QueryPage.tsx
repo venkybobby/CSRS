@@ -6,6 +6,7 @@ import type { QueryResponse } from "../types";
 export function QueryPage() {
   const [memberId, setMemberId] = useState("");
   const [question, setQuestion] = useState("");
+  const [dateOfService, setDateOfService] = useState("");
   const [response, setResponse] = useState<QueryResponse | null>(null);
   const [session, setSession] = useState<QueryResponse["session_state"] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -16,7 +17,12 @@ export function QueryPage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await submitQuery(memberId.trim(), question.trim(), session);
+      const result = await submitQuery(
+        memberId.trim(),
+        question.trim(),
+        session,
+        dateOfService || undefined,
+      );
       setResponse(result);
       setSession(result.session_state);
     } catch (err) {
@@ -49,6 +55,17 @@ export function QueryPage() {
             placeholder="MRI on his knee, what does he owe?"
             required
           />
+        </label>
+        <label>
+          Date of service <span className="label-optional">(optional)</span>
+          <input
+            type="date"
+            value={dateOfService}
+            onChange={(e) => setDateOfService(e.target.value)}
+          />
+          <span className="field-hint">
+            Leave blank to check eligibility as of today.
+          </span>
         </label>
         <button type="submit" disabled={loading}>
           {loading ? "Asking..." : "Ask"}

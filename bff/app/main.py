@@ -18,13 +18,19 @@ proves awkward for the frontend; not needed for this scope.
 """
 from __future__ import annotations
 
+from datetime import date
+
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
 
 from app.agent_client import AgentEngineClient, SessionState, next_session
 from app.audit_readback import get_session_transcript
 from app.auth import get_current_csr
-from app.guardrails import enforce_numeric_provenance
+from app.guardrails import (
+    DATE_OF_SERVICE_MISMATCH_MESSAGE,
+    enforce_date_of_service_provenance,
+    enforce_numeric_provenance,
+)
 from shared.messages import rate_not_found_message
 
 app = FastAPI(title="CSRSupport BFF")
@@ -44,6 +50,10 @@ class ClientSessionState(BaseModel):
 class QueryRequest(BaseModel):
     member_id: str
     question: str
+    # Typed as a date, not a string, so a malformed value is a 422 at this
+    # boundary rather than something the model has to interpret. Optional
+    # throughout: omitting it is the pre-existing "as of today" behavior.
+    date_of_service: date | None = None
     current_session: ClientSessionState | None = None
 
 
@@ -92,6 +102,15 @@ def query(
     # asking about and just asked for it back. Found live: every query
     # returned "What is the member's ID?" regardless of the member_id sent.
     combined_message = f"Member {body.member_id}: {body.question}"
+    if body.date_of_service is not None:
+        # Same channel as member_id above: the agent's tools take their
+        # arguments from what the model reads out of the message, so a
+        # structured field on this request has to be restated in the text to
+        # reach them. Unlike member_id, a dropped or altered date produces a
+        # plausible-looking quote for the wrong period, which is why it is
+        # verified again on the way back out (below) rather than trusted.
+        combined_message += f" (Date of service: {body.date_of_service.isoformat()})"
+
     raw = client.query(user_id=csr_user_id, session_id=new_state.session_id, message=combined_message)
     events = raw.get("events", [])
 
@@ -101,11 +120,18 @@ def query(
         agent_message, tool_payloads, audit_id=audit_id
     )
 
+    dos_ok = enforce_date_of_service_provenance(
+        body.date_of_service, structured_result, audit_id=audit_id
+    )
+    if not dos_ok:
+        final_message = DATE_OF_SERVICE_MISMATCH_MESSAGE
+        structured_result = None
+
     return QueryResponse(
         message=final_message,
         result=structured_result,
         audit_id=audit_id,
-        guardrail_triggered=not guardrail_result.passed,
+        guardrail_triggered=not guardrail_result.passed or not dos_ok,
         session_state=ClientSessionState(
             session_id=new_state.session_id,
             member_id=new_state.member_id,
@@ -119,7 +145,10 @@ def query(
 # agent/csr_agent/tools/models.py's CostEstimateResult union.
 _COST_ESTIMATE_RESPONSE_TYPES = {
     "MEMBER_NOT_FOUND",
+    "DATE_OF_SERVICE_INVALID",
     "TERMED_BLOCK",
+    "NOT_ELIGIBLE_ON_DOS",
+    "PLAN_YEAR_BOUNDARY",
     "EXCLUSION",
     "RATE_NOT_FOUND",
     "PREVENTIVE_ZERO_COST",

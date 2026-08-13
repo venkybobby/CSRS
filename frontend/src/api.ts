@@ -4,6 +4,10 @@ export async function submitQuery(
   memberId: string,
   question: string,
   currentSession: QueryResponse["session_state"] | null,
+  // Omitted from the body entirely when empty rather than sent as null: the
+  // backend treats "no date stated" as its pre-existing as-of-today
+  // behavior, and an explicit null would be a value the CSR never entered.
+  dateOfService?: string,
 ): Promise<QueryResponse> {
   const res = await fetch("/api/v1/query", {
     method: "POST",
@@ -13,6 +17,7 @@ export async function submitQuery(
       member_id: memberId,
       question,
       current_session: currentSession,
+      ...(dateOfService ? { date_of_service: dateOfService } : {}),
     }),
   });
 

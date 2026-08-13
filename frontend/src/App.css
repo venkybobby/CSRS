@@ -123,6 +123,50 @@
   color: #1a3d7c;
 }
 
+/* The dated yes. Deliberately green rather than the amber .banner-future-term
+   it replaces: with a date of service the coverage question is settled, and
+   amber would keep telling the CSR to check something already checked. */
+.banner-confirm {
+  background: #e6f7ee;
+  border-color: #9ddcb9;
+  color: #14532d;
+}
+
+/* "We will not quote this" -- NOT "the member is not covered".
+   Deliberately not the red .banner-block used by the eligibility refusals:
+   a plan-year stop and a past date both leave the member perfectly covered,
+   and a CSR scanning a red banner would tell them otherwise. Red is reserved
+   for answers about COVERAGE; amber means covered but unquotable. */
+.banner-cannot-price {
+  background: #fdeeda;
+  border-color: #f0c48c;
+  color: #7a4a10;
+}
+
+/* Coverage window / plan-year facts inside a refusal banner, so the CSR can
+   see WHY the date failed without re-reading the sentence. */
+.banner-detail {
+  margin: 0.5rem 0 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.banner-detail > div {
+  display: contents;
+}
+
+.banner-detail dt {
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.banner-detail dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
 .banner-guardrail {
   background: #fde8e8;
   border-color: #e57373;
@@ -181,4 +225,48 @@
   margin-top: 0.75rem;
   font-size: 0.75rem;
   color: #8a929e;
+}
+
+.dos-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.5rem 0;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.dos-label {
+  color: #4a5261;
+  font-weight: 500;
+}
+
+.dos-value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The stated assumption on every future-dated quote. Muted but always
+   present -- it is the sentence that keeps the number from reading as a
+   promise, so it must not be conditional on anything but the date. */
+.estimate-assumption {
+  margin: 0.75rem 0 0;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--border);
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.label-optional {
+  font-weight: 400;
+  opacity: 0.6;
+}
+
+.field-hint {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  color: #8a929e;
+  font-weight: 400;
 }

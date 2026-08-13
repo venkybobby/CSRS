@@ -1,8 +1,11 @@
 import type { CostEstimateResult } from "../types";
 import { ClarificationPrompt } from "./ClarificationPrompt";
 import { CostBreakdownTable } from "./CostBreakdownTable";
+import { DateOfServiceInvalidBanner } from "./DateOfServiceInvalidBanner";
 import { ExclusionBanner } from "./ExclusionBanner";
 import { MemberNotFoundBanner } from "./MemberNotFoundBanner";
+import { NotEligibleOnDateBanner } from "./NotEligibleOnDateBanner";
+import { PlanYearBoundaryBanner } from "./PlanYearBoundaryBanner";
 import { PreventiveBanner } from "./PreventiveBanner";
 import { RateNotFoundBanner } from "./RateNotFoundBanner";
 import { TermedBlock } from "./TermedBlock";
@@ -15,8 +18,14 @@ export function ResultPanel({ result }: { result: CostEstimateResult }) {
   switch (result.response_type) {
     case "MEMBER_NOT_FOUND":
       return <MemberNotFoundBanner result={result} />;
+    case "DATE_OF_SERVICE_INVALID":
+      return <DateOfServiceInvalidBanner result={result} />;
     case "TERMED_BLOCK":
       return <TermedBlock result={result} />;
+    case "NOT_ELIGIBLE_ON_DOS":
+      return <NotEligibleOnDateBanner result={result} />;
+    case "PLAN_YEAR_BOUNDARY":
+      return <PlanYearBoundaryBanner result={result} />;
     case "EXCLUSION":
       return <ExclusionBanner result={result} />;
     case "RATE_NOT_FOUND":
