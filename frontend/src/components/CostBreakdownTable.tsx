@@ -33,10 +33,11 @@ export function CostBreakdownTable({ result }: { result: StandardCostResult }) {
       )}
 
       {b.prior_auth_required && (
-        // plan_id (e.g. "MER-SLV-2026"), not a friendly display name --
-        // StandardCostResult doesn't carry plans.display_name today. Good
-        // enough for MVP1; a follow-up could add it to the API response.
-        <PriorAuthWarning cptCode={result.procedure.cpt_code ?? ""} planName={result.eligibility.plan_id ?? ""} />
+        <PriorAuthWarning
+          procedureName={result.procedure.common_name ?? result.procedure.cpt_code ?? ""}
+          cptCode={result.procedure.cpt_code ?? ""}
+          planName={result.plan_display_name}
+        />
       )}
 
       <table className="breakdown-table">

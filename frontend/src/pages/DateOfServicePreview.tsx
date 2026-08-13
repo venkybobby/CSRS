@@ -22,6 +22,7 @@ const ellery: EligibilityResult = {
 const datedYes: CostEstimateResult = {
   response_type: "STANDARD_COST",
   eligibility: ellery,
+  plan_display_name: "Meridian Silver 2026",
   procedure: {
     query: "73721",
     status: "MATCHED",

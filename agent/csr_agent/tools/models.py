@@ -185,6 +185,12 @@ class PreventiveZeroCostResult(StrictModel):
 class StandardCostResult(StrictModel):
     response_type: Literal["STANDARD_COST"] = "STANDARD_COST"
     eligibility: EligibilityResult
+    # plans.display_name ("Meridian Silver 2026"), not the plan_id already on
+    # eligibility ("MER-SLV-2026"). Story 4's prior-auth warning is specified
+    # as "[procedure name] under [plan name]", and the UI had no friendly
+    # name to render, so it fell back to the raw plan_id -- carried here so
+    # the banner can say what the AC says.
+    plan_display_name: str
     procedure: ProcedureMatchResult
     breakdown: CostBreakdown
     # See PreventiveZeroCostResult.date_of_service -- None when unstated.

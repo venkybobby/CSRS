@@ -63,8 +63,13 @@ def _derive_status(
 
     if date_of_service is None:
         if coverage_end is not None and coverage_end >= today:
+            # Plain text, no leading glyph: the UI banner renders its own ⚠️
+            # icon element (CostBreakdownTable), so carrying one in the string
+            # too produced a doubled "⚠️ ⚠️" on screen. The agent's
+            # CSR-readable prose adds the glyph at the point of use instead --
+            # same convention the prior-auth sentence follows.
             warning = (
-                f"⚠️ Coverage ends {coverage_end.isoformat()} -- "
+                f"Coverage ends {coverage_end.isoformat()} -- "
                 "confirm date of service falls within coverage period"
             )
             return "ACTIVE_FUTURE_TERM", warning

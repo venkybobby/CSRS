@@ -154,14 +154,21 @@ def test_termed_stays_termed_regardless_of_date():
 
 def test_no_date_of_service_preserves_the_original_warning():
     """Every new branch is gated on a date being supplied: without one the
-    pre-existing ACTIVE_FUTURE_TERM behavior must be bit-for-bit unchanged,
-    glyph included."""
+    pre-existing ACTIVE_FUTURE_TERM behavior is unchanged.
+
+    The string carries no ⚠️ glyph -- the UI banner renders its own icon
+    element, so embedding one here produced a doubled "⚠️ ⚠️" on screen. The
+    glyph is added at the point of use in the agent's prose instead, and
+    only on this undated path: the dated path's string is a confirmation
+    rather than a warning, so it must never be prefixed with one.
+    """
     status, warning = _derive_status("ACTIVE", ELLERY_START, ELLERY_END, TODAY, None)
     assert status == "ACTIVE_FUTURE_TERM"
     assert warning == (
-        "⚠️ Coverage ends 2026-08-31 -- "
+        "Coverage ends 2026-08-31 -- "
         "confirm date of service falls within coverage period"
     )
+    assert "⚠️" not in warning
 
 
 def test_no_date_of_service_open_ended_member_is_plain_active():
