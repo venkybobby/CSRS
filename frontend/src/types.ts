@@ -9,10 +9,21 @@ export interface EligibilityResult {
   name: string | null;
   plan_id: string | null;
   tier: "INDIVIDUAL" | "FAMILY" | null;
-  status: "ACTIVE" | "TERMED" | "ACTIVE_FUTURE_TERM" | null;
+  status:
+    | "ACTIVE"
+    | "TERMED"
+    | "ACTIVE_FUTURE_TERM"
+    | "NOT_COVERED_ON_DOS"
+    | null;
   coverage_start: string | null;
   coverage_end: string | null;
+  // With a date of service this holds a CONFIRMATION ("...falls within the
+  // coverage period"), not a warning -- render it accordingly. Only the
+  // no-date ACTIVE_FUTURE_TERM case is an actual warning.
   warning: string | null;
+  // The date this determination was made for: the stated date of service, or
+  // today when none was stated.
+  evaluated_as_of: string | null;
 }
 
 export interface CostBreakdown {
@@ -50,6 +61,33 @@ export interface TermedMemberResult extends BaseResult {
   eligibility: EligibilityResult;
 }
 
+// Carries member_id rather than an EligibilityResult: this refusal fires on
+// the shape of the request, before the member is looked up.
+export interface DateOfServiceInvalidResult extends BaseResult {
+  response_type: "DATE_OF_SERVICE_INVALID";
+  member_id: string;
+  date_of_service: string;
+  reason: "IN_PAST" | "BEYOND_MAX_HORIZON";
+}
+
+// Distinct from TERMED_BLOCK: this member is very likely eligible TODAY,
+// which is exactly why quoting them for this date would be wrong.
+export interface NotEligibleOnDateResult extends BaseResult {
+  response_type: "NOT_ELIGIBLE_ON_DOS";
+  eligibility: EligibilityResult;
+  date_of_service: string;
+  reason: "COVERAGE_ENDED" | "NOT_YET_EFFECTIVE";
+}
+
+// Member IS eligible on the date -- we simply cannot price it. Carries no
+// dollar field, like every other refusal.
+export interface PlanYearBoundaryResult extends BaseResult {
+  response_type: "PLAN_YEAR_BOUNDARY";
+  eligibility: EligibilityResult;
+  date_of_service: string;
+  plan_year_end: string;
+}
+
 export interface ExclusionResult extends BaseResult {
   response_type: "EXCLUSION";
   eligibility: EligibilityResult;
@@ -75,6 +113,9 @@ export interface PreventiveZeroCostResult extends BaseResult {
   eligibility: EligibilityResult;
   cpt_code: string;
   common_name: string;
+  // null when the CSR stated no date -- never defaulted to today, so the
+  // quote cannot print a date they did not give.
+  date_of_service: string | null;
   member_cost: "0.00";
 }
 
@@ -89,6 +130,8 @@ export interface StandardCostResult extends BaseResult {
     negotiated_rate: string | null;
   };
   breakdown: CostBreakdown;
+  // See PreventiveZeroCostResult.date_of_service.
+  date_of_service: string | null;
 }
 
 export interface NeedsClarificationResult extends BaseResult {
@@ -99,7 +142,10 @@ export interface NeedsClarificationResult extends BaseResult {
 
 export type CostEstimateResult =
   | MemberNotFoundResult
+  | DateOfServiceInvalidResult
   | TermedMemberResult
+  | NotEligibleOnDateResult
+  | PlanYearBoundaryResult
   | ExclusionResult
   | RateNotFoundResult
   | PreventiveZeroCostResult

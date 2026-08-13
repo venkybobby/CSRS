@@ -85,3 +85,137 @@ cases:
     expected_response_type: "RATE_NOT_FOUND"
     expected_tool_sequence: [check_eligibility, resolve_procedure]
     expected_message_contains: ["don't have a negotiated rate", "Do not estimate"]
+
+  # --- Regression: clarify gate ------------------------------------------
+  #
+  # The gate substring-matched "colonoscopy" and returned before any scoring
+  # ran, so it asked even when the CSR had already said which kind they
+  # meant -- "preventive colonoscopy" is an exact search_aliases entry on
+  # 45380 and scored 100, and that match was discarded to ask about it.
+  # Locked in here because the failure is invisible in a single-turn test:
+  # a second turn resolves through resolve_clarification and looks correct.
+
+  - id: preventive_colonoscopy_resolves_without_asking
+    question: "M1001 wants a preventive colonoscopy"
+    member_id: "M1001"
+    expected_cpt_code: "45380"
+    expected_response_type: "PREVENTIVE_ZERO_COST"
+    expected_tool_sequence: [check_eligibility, resolve_procedure, estimate_member_cost]
+    expected_message_contains: ["$0", "preventive"]
+
+  - id: diagnostic_colonoscopy_resolves_without_asking
+    question: "M1001 needs a diagnostic colonoscopy"
+    member_id: "M1001"
+    expected_cpt_code: "45378"
+    expected_response_type: "STANDARD_COST"
+    expected_tool_sequence: [check_eligibility, resolve_procedure, estimate_member_cost]
+
+  # --- Exclusion vs. no-rate ---------------------------------------------
+  #
+  # The subtlest trap in the set: S8092 has a NULL negotiated_rate AND is
+  # excluded on Bronze, so the two paths are reachable with the same code and
+  # must give different answers. Bronze must say "not a covered benefit"
+  # (exclusion fires first); Silver/Gold must say "no rate on file".
+
+  - id: exclusion_beats_missing_rate_on_bronze
+    question: "acupuncture for M1004"
+    member_id: "M1004"
+    expected_cpt_code: "S8092"
+    expected_response_type: "EXCLUSION"
+    expected_tool_sequence: [check_eligibility, resolve_procedure, estimate_member_cost]
+    expected_message_contains: ["excluded", "not a covered benefit"]
+
+  - id: same_code_is_rate_not_found_on_silver
+    question: "acupuncture for M1001"
+    member_id: "M1001"
+    expected_cpt_code: "S8092"
+    expected_response_type: "RATE_NOT_FOUND"
+    expected_tool_sequence: [check_eligibility, resolve_procedure, estimate_member_cost]
+    expected_message_contains: ["don't have a negotiated rate"]
+    must_differ_from: exclusion_beats_missing_rate_on_bronze
+    must_differ_fields: [response_type]
+
+  # --- Date of service ----------------------------------------------------
+  #
+  # Every case below pins `today`, because each asserts behavior relative to
+  # a calendar position (M1010 coverage ends 2026-08-31, plan year ends
+  # 2026-12-31). Without pinning, these rot into failures on their own as
+  # real time passes rather than because anyone changed the code.
+
+  - id: dos_dated_yes_inside_coverage
+    question: "MRI on his knee for M1010"
+    member_id: "M1010"
+    today: "2026-08-13"
+    date_of_service: "2026-08-20"
+    expected_cpt_code: "73721"
+    expected_response_type: "STANDARD_COST"
+    expected_tool_sequence: [check_eligibility, resolve_procedure, estimate_member_cost]
+    expected_message_contains:
+      - "2026-08-20"
+      - "falls within the coverage period"
+      - "balances as of 2026-08-13"
+
+  - id: dos_dated_no_after_coverage_ends
+    question: "MRI on his knee for M1010"
+    member_id: "M1010"
+    today: "2026-08-13"
+    date_of_service: "2026-09-15"
+    expected_cpt_code: null  # blocked before any procedure lookup
+    expected_response_type: "NOT_ELIGIBLE_ON_DOS"
+    expected_tool_sequence: [check_eligibility]
+    expected_fields:
+      reason: "COVERAGE_ENDED"
+    expected_message_contains: ["George Ellery", "2026-08-31", "2026-09-15", "Do not quote"]
+    # Same member, same question, same day -- only the date differs. If these
+    # ever return the same response_type the as-of-date evaluation is dead.
+    must_differ_from: dos_dated_yes_inside_coverage
+    must_differ_fields: [response_type]
+
+  - id: dos_plan_year_boundary_is_a_refusal
+    question: "MRI on his knee for M1002"
+    member_id: "M1002"
+    today: "2026-11-15"
+    date_of_service: "2027-01-20"
+    expected_cpt_code: null
+    expected_response_type: "PLAN_YEAR_BOUNDARY"
+    expected_tool_sequence: [check_eligibility]
+    expected_message_contains:
+      - "next plan year"
+      - "2026-12-31"
+      - "MER-SLV-2026"
+      - "Do not quote a cost for this date"
+
+  - id: dos_in_past_is_a_claims_question
+    question: "MRI on his knee for M1002"
+    member_id: "M1002"
+    today: "2026-08-13"
+    date_of_service: "2026-07-20"
+    expected_cpt_code: null
+    expected_response_type: "DATE_OF_SERVICE_INVALID"
+    expected_tool_sequence: [check_eligibility]
+    expected_fields:
+      reason: "IN_PAST"
+    expected_message_contains: ["in the past", "Route to Claims"]
+
+  - id: dos_beyond_ninety_days_is_refused
+    question: "MRI on his knee for M1002"
+    member_id: "M1002"
+    today: "2026-08-13"
+    date_of_service: "2026-12-01"
+    expected_cpt_code: null
+    expected_response_type: "DATE_OF_SERVICE_INVALID"
+    expected_tool_sequence: [check_eligibility]
+    expected_fields:
+      reason: "BEYOND_MAX_HORIZON"
+    expected_message_contains: ["more than 90 days out", "2026-11-11"]
+
+  # No date of service: the pre-existing warning behavior must be unchanged,
+  # which is the property that keeps every case above this block honest.
+  - id: no_dos_preserves_future_term_warning
+    question: "MRI on his knee for M1010"
+    member_id: "M1010"
+    today: "2026-08-13"
+    expected_cpt_code: "73721"
+    expected_response_type: "STANDARD_COST"
+    expected_tool_sequence: [check_eligibility, resolve_procedure, estimate_member_cost]
+    expected_message_contains: ["Coverage ends 2026-08-31", "confirm date of service"]

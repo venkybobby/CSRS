@@ -39,6 +39,23 @@ steps:
       - -c
       - pip install --no-cache-dir -r requirements-dev.txt && pytest tests/unit -v
 
+  # The frontend had no gate at all: the lint step above is `ruff` over the
+  # Python tree and never invoked npm, so `npm run lint` was broken (no
+  # ESLint 9 flat config existed, so it errored rather than reporting zero
+  # problems) without anything noticing. Type errors in the hand-mirrored
+  # types.ts -- the file that has to stay in sync with the Python
+  # CostEstimateResult union by hand -- were equally unguarded.
+  - id: frontend-lint-and-typecheck
+    name: node:20-slim
+    entrypoint: bash
+    args:
+      - -c
+      - >
+        cd frontend &&
+        npm ci &&
+        npm run lint &&
+        npm run typecheck
+
   # Ephemeral Postgres for integration tests + the deterministic eval mode --
   # a Cloud Build network service, torn down with the build, never a
   # persistent instance.

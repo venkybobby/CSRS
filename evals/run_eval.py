@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -63,6 +64,16 @@ def run_deterministic(cases: list[dict]) -> list[tuple[str, str | None]]:
     results: dict[str, dict] = {}
     outcomes: list[tuple[str, str | None]] = []
 
+    # Outcomes decided before any procedure lookup happens. The cpt value
+    # passed for these is irrelevant to the result by design -- eligibility
+    # and date-of-service validation both short-circuit ahead of it.
+    pre_procedure_types = {
+        "TERMED_BLOCK",
+        "NOT_ELIGIBLE_ON_DOS",
+        "DATE_OF_SERVICE_INVALID",
+        "PLAN_YEAR_BOUNDARY",
+    }
+
     for case in cases:
         case_id = case["id"]
         try:
@@ -70,10 +81,20 @@ def run_deterministic(cases: list[dict]) -> list[tuple[str, str | None]]:
             expected_cpt = case.get("expected_cpt_code")
             expected_type = case["expected_response_type"]
 
-            if expected_type == "TERMED_BLOCK":
-                # Blocks before any procedure lookup -- the cpt value used
-                # here is irrelevant to the outcome by design.
-                result = estimate_member_cost(member_id, "00000", **audit_ctx)
+            # A case that pins `today` is asserting behavior relative to a
+            # fixed calendar position rather than to whenever CI happens to
+            # run. Required for anything date-dependent: without it, a case
+            # asserting a 2026-09-15 date of service silently flips from
+            # "future" to "in the past" and starts failing on its own, long
+            # after the change that would have justified it.
+            date_kwargs: dict[str, Any] = {}
+            if case.get("today"):
+                date_kwargs["today"] = date.fromisoformat(case["today"])
+            if case.get("date_of_service"):
+                date_kwargs["date_of_service"] = date.fromisoformat(case["date_of_service"])
+
+            if expected_type in pre_procedure_types:
+                result = estimate_member_cost(member_id, "00000", **audit_ctx, **date_kwargs)
                 result_dict = result.model_dump(mode="json")
 
             elif expected_type == "RATE_NOT_FOUND" and expected_cpt is None:
@@ -100,7 +121,9 @@ def run_deterministic(cases: list[dict]) -> list[tuple[str, str | None]]:
                         f"got status={match.status!r} cpt_code={match.cpt_code!r}",
                     ))
                     continue
-                result = estimate_member_cost(member_id, expected_cpt, **audit_ctx)
+                result = estimate_member_cost(
+                    member_id, expected_cpt, **audit_ctx, **date_kwargs
+                )
                 result_dict = result.model_dump(mode="json")
 
             results[case_id] = result_dict
