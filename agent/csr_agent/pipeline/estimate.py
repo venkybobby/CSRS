@@ -11,7 +11,6 @@ compliance-relevant events too, not just priced quotes.
 from __future__ import annotations
 
 from datetime import date
-from typing import Literal
 from uuid import uuid4
 
 from csr_agent.calculator.family import family_tier_cost
