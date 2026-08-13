@@ -103,6 +103,9 @@ def estimate_member_cost(
         return result
 
     if elig.status == "TERMED":
+        # Same model-optionality gap as the plan_id assert below: found is
+        # True here, and a found member row always carries a name.
+        assert elig.name is not None
         result = TermedMemberResult(
             eligibility=elig,
             message=termed_member_message(

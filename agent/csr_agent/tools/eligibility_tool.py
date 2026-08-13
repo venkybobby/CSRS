@@ -49,6 +49,13 @@ def check_eligibility(member_id: str, tool_context: ToolContext) -> dict:
     if elig.status != "TERMED":
         return elig.model_dump(mode="json")
 
+    # Reaching here means status was populated, and get_eligibility only
+    # populates status on a found member row (both not-found paths return a
+    # bare found=False result whose status is None) -- so name is set too.
+    # That invariant lives in EligibilityResult's optional typing rather than
+    # anywhere mypy can follow from the status check.
+    assert elig.name is not None
+
     result = TermedMemberResult(
         eligibility=elig,
         message=termed_member_message(
