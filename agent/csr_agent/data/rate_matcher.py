@@ -64,6 +64,40 @@ def _normalize_query(query: str) -> str:
 # lowercased, stripped query.
 AMBIGUOUS_ALWAYS = ("colonoscopy",)
 
+# ...but only when the CSR has not ALREADY said which one. The gate above
+# short-circuits before any scoring, so without this it fired even on
+# "preventive colonoscopy" -- which is an exact search_aliases entry on
+# 45380 and scores 100. Asking a question the CSR just answered, with a
+# caller on hold, is the single fastest way to get a tool abandoned.
+#
+# Keyed by the ambiguous term (not global) so a second AMBIGUOUS_ALWAYS
+# entry cannot silently inherit colonoscopy's vocabulary -- "routine" means
+# preventive for a colonoscopy but would mean nothing for, say, an MRI
+# with/without contrast.
+DISAMBIGUATORS: dict[str, dict[str, tuple[str, ...]]] = {
+    "colonoscopy": {
+        "45380": ("preventive", "screening", "screen", "routine", "wellness"),
+        "45378": ("diagnostic", "symptom", "follow up", "followup", "problem"),
+    },
+}
+
+
+def _disambiguated_cpt(term: str, normalized: str) -> str | None:
+    """The CPT an already-qualified ambiguous query resolves to, or None to
+    fall through to the clarifying question.
+
+    Deliberately requires exactly ONE side to match: a query naming both
+    (e.g. "diagnostic colonoscopy after her screening") is genuinely
+    ambiguous and must still be asked about rather than resolved by
+    whichever qualifier happened to be listed first.
+    """
+    hits = {
+        cpt_code
+        for cpt_code, qualifiers in DISAMBIGUATORS.get(term, {}).items()
+        if any(qualifier in normalized for qualifier in qualifiers)
+    }
+    return hits.pop() if len(hits) == 1 else None
+
 
 @dataclass(frozen=True)
 class RateSheetRow:
@@ -107,6 +141,21 @@ def match_procedure(query: str, catalog: list[RateSheetRow] | None = None) -> Pr
 
     forced = next((term for term in AMBIGUOUS_ALWAYS if term in normalized), None)
     if forced is not None:
+        already_qualified = _disambiguated_cpt(forced, normalized)
+        if already_qualified is not None:
+            row = next((r for r in catalog if r.cpt_code == already_qualified), None)
+            # A qualifier pointing at a code the rate sheet doesn't carry is
+            # a seed/config mismatch, not a CSR error -- fall through to the
+            # question rather than reporting a confident NOT_ON_FILE.
+            if row is not None:
+                return ProcedureMatchResult(
+                    query=query,
+                    status="MATCHED",
+                    cpt_code=row.cpt_code,
+                    common_name=row.common_name,
+                    negotiated_rate=row.negotiated_rate,
+                )
+
         candidates = _candidates_for_query(catalog, (forced,))
         return ProcedureMatchResult(
             query=query,
