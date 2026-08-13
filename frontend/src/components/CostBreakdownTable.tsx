@@ -8,12 +8,27 @@ function money(value: string): string {
 
 export function CostBreakdownTable({ result }: { result: StandardCostResult }) {
   const b = result.breakdown;
+  // With a date of service, eligibility.warning holds a CONFIRMATION that the
+  // date falls inside the coverage period -- the tool has already done the
+  // checking the old warning asked the CSR to do. Rendering that under a ⚠️
+  // would tell the CSR to worry about the exact thing that was just resolved.
+  const dated = result.date_of_service !== null;
   return (
     <div className="cost-panel">
       {result.eligibility.warning && (
-        <div className="banner banner-future-term" role="alert">
-          <div className="banner-icon">⚠️</div>
+        <div
+          className={dated ? "banner banner-confirm" : "banner banner-future-term"}
+          role={dated ? "status" : "alert"}
+        >
+          <div className="banner-icon">{dated ? "✅" : "⚠️"}</div>
           <p className="banner-message">{result.eligibility.warning}</p>
+        </div>
+      )}
+
+      {dated && (
+        <div className="dos-line">
+          <span className="dos-label">Date of service</span>
+          <span className="dos-value">{result.date_of_service}</span>
         </div>
       )}
 
@@ -65,6 +80,16 @@ export function CostBreakdownTable({ result }: { result: StandardCostResult }) {
           </tr>
         </tbody>
       </table>
+
+      {dated && (
+        // The stated assumption behind every future-dated quote: eligibility
+        // is exact as of the date of service, the dollars are not. Rendered
+        // as its own line rather than buried in prose so it survives onto
+        // anything the CSR later reads out or sends.
+        <p className="estimate-assumption">
+          Balances are as of today and may change before {result.date_of_service}.
+        </p>
+      )}
 
       <p className="audit-ref">Audit ref: {result.audit_id}</p>
     </div>

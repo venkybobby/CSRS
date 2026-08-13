@@ -52,12 +52,42 @@ def test_unqualified_colonoscopy_forces_clarification(catalog):
     assert candidate_codes == {"45380", "45378"}
 
 
-def test_qualified_colonoscopy_still_forces_clarification(catalog):
-    """Even a query that already contains 'preventive' still routes through
-    clarification -- the CSR confirms explicitly rather than the system
-    silently trusting a keyword match. (Matches the spec's framing: the
-    system ASKS, it does not infer from phrasing.)"""
-    result = match_procedure("preventive colonoscopy", catalog=catalog)
+@pytest.mark.parametrize(
+    "query, expected_cpt",
+    [
+        ("wants a preventive colonoscopy", "45380"),
+        ("screening colonoscopy", "45380"),
+        ("M1001 is due for a routine colonoscopy", "45380"),
+        ("diagnostic colonoscopy", "45378"),
+        ("colonoscopy because of symptoms", "45378"),
+    ],
+)
+def test_qualified_colonoscopy_resolves_without_asking(catalog, query, expected_cpt):
+    """A query that ALREADY names preventive/diagnostic must not be sent
+    back through the clarifying question.
+
+    This reverses a previous expectation ("the system ASKS, it does not
+    infer from phrasing"). That reading made the tool ask the CSR a
+    question they had just answered -- with a member on hold -- which is
+    the failure mode most likely to get the tool abandoned on the floor.
+    The safety property it was protecting is unchanged and still tested
+    below: the system never *silently picks* when the query is genuinely
+    ambiguous, only when the CSR has already been explicit.
+
+    Note "preventive colonoscopy" is an exact search_aliases entry on
+    45380 -- the old gate returned before scoring ever ran, so a perfect
+    100 match was discarded to ask about it.
+    """
+    result = match_procedure(query, catalog=catalog)
+    assert result.status == "MATCHED"
+    assert result.cpt_code == expected_cpt
+
+
+def test_conflicting_qualifiers_still_force_clarification(catalog):
+    """The narrow case the old always-ask rule was really protecting: a
+    query naming BOTH sides is genuinely ambiguous and must still ask
+    rather than resolve to whichever qualifier is listed first."""
+    result = match_procedure("diagnostic colonoscopy after her screening", catalog=catalog)
     assert result.status == "NEEDS_CLARIFICATION"
 
 
@@ -153,8 +183,16 @@ def test_does_not_cross_match_similar_body_part_procedures(catalog):
 
 def test_clarification_answer_resolves_to_preventive(catalog):
     """Story 7: the CSR answers "screening" and the system resolves to CPT
-    45380 rather than re-asking."""
-    turn1 = match_procedure("wants a preventive colonoscopy, what does she owe?", catalog=catalog)
+    45380 rather than re-asking.
+
+    Turn 1 is a BARE "colonoscopy" rather than the qualified phrasing this
+    originally used. A query that already names which kind it is now resolves
+    outright and never reaches turn 2, so opening with one would test the
+    clarify gate instead of resolve_clarification -- which is what this test
+    is actually for. Bare "colonoscopy" is still genuinely ambiguous and
+    still asks, so it is the honest way in.
+    """
+    turn1 = match_procedure("colonoscopy, what does she owe?", catalog=catalog)
     assert turn1.status == "NEEDS_CLARIFICATION"
     candidates = [c.cpt_code for c in turn1.candidates]
 

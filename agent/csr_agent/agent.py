@@ -47,9 +47,12 @@ Follow this sequence strictly:
 
 3. If resolve_procedure returns status "NEEDS_CLARIFICATION", ask the CSR
    the exact clarifying_question field, word for word, and wait for their
-   answer. This includes any colonoscopy request -- always confirm
-   preventive vs. diagnostic before proceeding, even if the CSR's phrasing
-   seems to already imply one. When the CSR answers, call resolve_procedure
+   answer. Decide this from the tool's status alone, never from your own
+   reading of the phrasing: resolve_procedure now resolves a request that
+   already names which kind it is ("preventive colonoscopy", "diagnostic
+   colonoscopy") and asks only when the request is genuinely ambiguous, so
+   asking anyway would put a question the CSR has already answered in front
+   of a member on hold. When the CSR answers, call resolve_procedure
    again passing their answer as they wrote it -- do not translate it into a
    CPT code or into one of the candidate names yourself. The tool knows
    which question is outstanding and resolves the answer against the

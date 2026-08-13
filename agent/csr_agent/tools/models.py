@@ -30,10 +30,22 @@ class EligibilityResult(StrictModel):
     name: str | None = None
     plan_id: str | None = None
     tier: Literal["INDIVIDUAL", "FAMILY"] | None = None
-    status: Literal["ACTIVE", "TERMED", "ACTIVE_FUTURE_TERM"] | None = None
+    # NOT_COVERED_ON_DOS is reachable only when a date of service was
+    # supplied: without one the question is "covered today?", which the
+    # ACTIVE/ACTIVE_FUTURE_TERM pair already answers. The two reasons it can
+    # fire (coverage ended before the date, coverage not yet effective on it)
+    # are distinguished by NotEligibleOnDateResult.reason rather than by two
+    # statuses, so the frontend keeps a single not-covered branch to render.
+    status: Literal[
+        "ACTIVE", "TERMED", "ACTIVE_FUTURE_TERM", "NOT_COVERED_ON_DOS"
+    ] | None = None
     coverage_start: date | None = None
     coverage_end: date | None = None
     warning: str | None = None  # e.g. "coverage ends 2026-08-31" -- code-populated only
+    # The date this determination was made FOR -- today when the CSR gave no
+    # date of service, otherwise the date they gave. Carried so the audit row
+    # records what question was actually answered, not just its answer.
+    evaluated_as_of: date | None = None
 
 
 class ProcedureCandidate(StrictModel):
@@ -85,6 +97,49 @@ class TermedMemberResult(StrictModel):
     source_tool_calls: list[str] = Field(default_factory=list)
 
 
+class DateOfServiceInvalidResult(StrictModel):
+    """The requested date cannot be quoted at all -- a request-level refusal
+    that fires before the member is even looked up, so it carries a
+    member_id rather than an EligibilityResult."""
+
+    response_type: Literal["DATE_OF_SERVICE_INVALID"] = "DATE_OF_SERVICE_INVALID"
+    member_id: str
+    date_of_service: date
+    reason: Literal["IN_PAST", "BEYOND_MAX_HORIZON"]
+    message: str
+    audit_id: UUID
+    source_tool_calls: list[str] = Field(default_factory=list)
+
+
+class NotEligibleOnDateResult(StrictModel):
+    """Member exists and is not termed, but is outside their coverage window
+    on the requested date. Distinct from TERMED_BLOCK: this member may be
+    perfectly eligible today, just not on the date being asked about."""
+
+    response_type: Literal["NOT_ELIGIBLE_ON_DOS"] = "NOT_ELIGIBLE_ON_DOS"
+    eligibility: EligibilityResult
+    date_of_service: date
+    reason: Literal["COVERAGE_ENDED", "NOT_YET_EFFECTIVE"]
+    message: str
+    audit_id: UUID
+    source_tool_calls: list[str] = Field(default_factory=list)
+
+
+class PlanYearBoundaryResult(StrictModel):
+    """Member IS eligible on the date -- we simply cannot price it. Both the
+    accumulators and the plan record are current-year-scoped, so there is no
+    honest number to give. Carries no dollar field, like every other refusal
+    in this module."""
+
+    response_type: Literal["PLAN_YEAR_BOUNDARY"] = "PLAN_YEAR_BOUNDARY"
+    eligibility: EligibilityResult
+    date_of_service: date
+    plan_year_end: date
+    message: str
+    audit_id: UUID
+    source_tool_calls: list[str] = Field(default_factory=list)
+
+
 class ExclusionResult(StrictModel):
     response_type: Literal["EXCLUSION"] = "EXCLUSION"
     eligibility: EligibilityResult
@@ -110,6 +165,9 @@ class PreventiveZeroCostResult(StrictModel):
     eligibility: EligibilityResult
     cpt_code: str
     common_name: str
+    # None when the CSR named no date -- deliberately not defaulted to today,
+    # so a quote never prints a date of service the CSR did not actually give.
+    date_of_service: date | None = None
     message: str
     audit_id: UUID
     source_tool_calls: list[str] = Field(default_factory=list)
@@ -135,6 +193,8 @@ class StandardCostResult(StrictModel):
     plan_display_name: str
     procedure: ProcedureMatchResult
     breakdown: CostBreakdown
+    # See PreventiveZeroCostResult.date_of_service -- None when unstated.
+    date_of_service: date | None = None
     message: str
     audit_id: UUID
     source_tool_calls: list[str] = Field(default_factory=list)
@@ -166,7 +226,10 @@ class AgentResponse(StrictModel):
 
 CostEstimateResult = Annotated[
     MemberNotFoundResult
+    | DateOfServiceInvalidResult
     | TermedMemberResult
+    | NotEligibleOnDateResult
+    | PlanYearBoundaryResult
     | ExclusionResult
     | RateNotFoundResult
     | PreventiveZeroCostResult
