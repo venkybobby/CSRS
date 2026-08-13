@@ -81,6 +81,9 @@ export interface PreventiveZeroCostResult extends BaseResult {
 export interface StandardCostResult extends BaseResult {
   response_type: "STANDARD_COST";
   eligibility: EligibilityResult;
+  // "Meridian Silver 2026" -- the friendly plan name for the prior-auth
+  // banner, as opposed to eligibility.plan_id ("MER-SLV-2026").
+  plan_display_name: string;
   procedure: {
     query: string;
     status: "MATCHED" | "NEEDS_CLARIFICATION" | "NOT_ON_FILE";

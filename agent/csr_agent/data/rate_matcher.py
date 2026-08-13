@@ -11,6 +11,7 @@ integration tests and the running agent.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -43,6 +44,20 @@ from csr_agent.tools.models import ProcedureCandidate, ProcedureMatchResult
 MATCH_THRESHOLD = 90
 CLARIFY_THRESHOLD = 60
 MAX_CLARIFY_CANDIDATES = 4
+
+# Turn-2 thresholds, used ONLY by resolve_clarification() when scoring the
+# CSR's answer against the candidates they were just shown. Deliberately not
+# MATCH_THRESHOLD: that 90 governs open-ended free text against the whole
+# rate sheet, where a near-miss means a different procedure entirely. Here
+# the pool is restricted to the two codes already on the CSR's screen and
+# they are answering a direct either/or question, so the reliable signal is
+# SEPARATION between those candidates rather than absolute similarity -- a
+# natural answer like "the screening one" scores only ~69 against the
+# preventive row's aliases but beats the diagnostic row's by ~33. An answer
+# that does not separate them (e.g. a bare "colonoscopy", which scores 100
+# against both) falls below the margin and is re-asked rather than guessed.
+CLARIFY_ANSWER_MIN_SCORE = 60
+CLARIFY_ANSWER_MIN_MARGIN = 25
 
 # Matches "M1002", "m1234", etc. so a member ID embedded in a free-text
 # question doesn't get treated as a token to fuzzy-match against procedure
@@ -165,6 +180,90 @@ def match_procedure(query: str, catalog: list[RateSheetRow] | None = None) -> Pr
         )
 
     return ProcedureMatchResult(query=query, status="NOT_ON_FILE")
+
+
+def resolve_clarification(
+    answer: str,
+    candidate_cpt_codes: Sequence[str],
+    clarifying_question: str,
+    catalog: list[RateSheetRow] | None = None,
+) -> ProcedureMatchResult:
+    """Turn 2 of a clarification: interpret the CSR's answer as a choice
+    among the candidates that were offered on turn 1 (Story 2/7).
+
+    This exists because AMBIGUOUS_ALWAYS is a property of the query TEXT,
+    not of the conversation: it substring-matches "colonoscopy", so every
+    query containing that word -- including the CSR's own answer, and
+    including the candidate common_names the UI just displayed to them --
+    was routed straight back to the same clarifying question. Only an
+    answer that happened to omit the word (a bare "screening") could ever
+    resolve, which made Story 7's preventive $0 path unreachable in
+    practice.
+
+    Restricting the pool to the offered codes is also strictly safer than
+    re-running open free-text matching: the outcome can only ever be one of
+    the codes the CSR was actually shown, never some third procedure.
+    """
+    if catalog is None:
+        catalog = _load_catalog_from_db()
+
+    normalized = _normalize_query(answer)
+    offered = [row for row in catalog if row.cpt_code in set(candidate_cpt_codes)]
+
+    scored: list[tuple[float, RateSheetRow]] = []
+    for row in offered:
+        haystacks = (row.common_name, *row.search_aliases)
+        best_for_row = max(
+            (fuzz.token_set_ratio(normalized, h.lower()) for h in haystacks), default=0.0
+        )
+        scored.append((best_for_row, row))
+    scored.sort(key=lambda pair: pair[0], reverse=True)
+
+    if scored:
+        best_score, best_row = scored[0]
+        runner_up_score = scored[1][0] if len(scored) > 1 else 0.0
+        if (
+            best_score >= CLARIFY_ANSWER_MIN_SCORE
+            and best_score - runner_up_score >= CLARIFY_ANSWER_MIN_MARGIN
+        ):
+            return ProcedureMatchResult(
+                query=answer,
+                status="MATCHED",
+                cpt_code=best_row.cpt_code,
+                common_name=best_row.common_name,
+                negotiated_rate=best_row.negotiated_rate,
+            )
+
+    # Not decisive -- re-ask the SAME question verbatim rather than picking
+    # the higher of two indistinguishable scores.
+    return ProcedureMatchResult(
+        query=answer,
+        status="NEEDS_CLARIFICATION",
+        candidates=[
+            ProcedureCandidate(cpt_code=row.cpt_code, common_name=row.common_name, score=score)
+            for score, row in scored
+        ],
+        clarifying_question=clarifying_question,
+    )
+
+
+def get_procedure_name(cpt_code: str) -> str | None:
+    """The rate sheet's friendly common_name for an already-resolved CPT
+    code. Deliberately separate from get_rate(): every CSR-visible message
+    that names a procedure needs this, including the two branches where
+    get_rate() returns None and therefore can't supply it -- an excluded
+    code (S8092 on Bronze, exclusion fires before any rate is needed) and a
+    matched-but-unpriced code (S8092 on Silver/Gold, NULL negotiated_rate).
+    Returns None only for a code with no rate_sheet row at all, which the
+    pipeline renders as the bare code rather than inventing a name."""
+    engine = get_engine()
+    with engine.connect() as conn:
+        row = conn.execute(
+            text("SELECT common_name FROM rate_sheet WHERE cpt_code = :cpt_code"),
+            {"cpt_code": cpt_code},
+        ).mappings().first()
+
+    return row["common_name"] if row is not None else None
 
 
 def get_rate(cpt_code: str) -> RateInfo | None:

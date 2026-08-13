@@ -17,7 +17,7 @@ from csr_agent.calculator.family import family_tier_cost
 from csr_agent.calculator.individual import individual_tier_cost
 from csr_agent.data.audit import write_audit_log
 from csr_agent.data.eligibility import get_eligibility, get_member_accumulators, get_plan
-from csr_agent.data.rate_matcher import get_rate
+from csr_agent.data.rate_matcher import get_procedure_name, get_rate
 from csr_agent.tools.models import (
     CostEstimateResult,
     ExclusionResult,
@@ -128,14 +128,22 @@ def estimate_member_cost(
     if plan is None:
         raise RuntimeError(f"Member {member_id} references unknown plan_id {elig.plan_id!r}")
 
+    # Resolved once, before the first branch that needs it. Every CSR-visible
+    # message below names the procedure the way a CSR would say it rather
+    # than by raw CPT code; falls back to the code itself when the rate sheet
+    # has no row to name it from.
+    common_name = get_procedure_name(cpt_code)
+    procedure_label = common_name or cpt_code
+
     if cpt_code in plan.excluded_codes:
         result = ExclusionResult(
             eligibility=elig,
             cpt_code=cpt_code,
+            common_name=common_name,
             plan_id=plan.plan_id,
             message=(
-                f"This procedure ({cpt_code}) is excluded from {plan.display_name}. "
-                "It is not a covered benefit. Do not quote a cost."
+                f"This procedure ({cpt_code} -- {procedure_label}) is excluded from "
+                f"{plan.display_name}. It is not a covered benefit. Do not quote a cost."
             ),
             audit_id=uuid4(),
         )
@@ -155,8 +163,8 @@ def estimate_member_cost(
     if rate is None:
         result = RateNotFoundResult(
             eligibility=elig,
-            procedure_query=cpt_code,
-            message=rate_not_found_message(cpt_code),
+            procedure_query=procedure_label,
+            message=rate_not_found_message(procedure_label),
             audit_id=uuid4(),
         )
         _log(
@@ -172,10 +180,11 @@ def estimate_member_cost(
         result = PreventiveZeroCostResult(
             eligibility=elig,
             cpt_code=cpt_code,
-            common_name=cpt_code,
+            common_name=procedure_label,
             message=(
-                f"Member owes $0. {cpt_code} is covered at 100% as a preventive benefit "
-                f"under {plan.display_name}. No deductible or coinsurance applies."
+                f"Member owes $0. {procedure_label} ({cpt_code}) is covered at 100% as a "
+                f"preventive benefit under {plan.display_name}. No deductible or "
+                "coinsurance applies."
             ),
             audit_id=uuid4(),
         )
@@ -211,17 +220,22 @@ def estimate_member_cost(
         message += " Out-of-pocket maximum reached -- cost capped."
     if breakdown.prior_auth_required:
         message += (
-            f" ⚠️ Prior authorization required for {cpt_code} under {plan.display_name}. "
-            "Advise member to obtain auth before service. Cost estimate shown assumes "
-            "auth is approved."
+            f" ⚠️ Prior authorization required for {procedure_label} ({cpt_code}) under "
+            f"{plan.display_name}. Advise member to obtain auth before service. Cost "
+            "estimate shown assumes auth is approved."
         )
     if elig.warning:
-        message += f" {elig.warning}"
+        message += f" ⚠️ {elig.warning}"
 
     result = StandardCostResult(
         eligibility=elig,
+        plan_display_name=plan.display_name,
         procedure=ProcedureMatchResult(
-            query=cpt_code, status="MATCHED", cpt_code=cpt_code, negotiated_rate=rate.negotiated_rate
+            query=cpt_code,
+            status="MATCHED",
+            cpt_code=cpt_code,
+            common_name=common_name,
+            negotiated_rate=rate.negotiated_rate,
         ),
         breakdown=breakdown,
         message=message,
