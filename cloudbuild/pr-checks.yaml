@@ -21,7 +21,10 @@ steps:
     entrypoint: bash
     args:
       - -c
-      - pip install --no-cache-dir -r requirements-dev.txt && ruff check agent bff shared tests evals
+      # scripts/ is in scope because tests/unit/test_preview_fixtures.py
+      # imports generate_preview_fixtures -- it is test-load-bearing code,
+      # not loose tooling.
+      - pip install --no-cache-dir -r requirements-dev.txt && ruff check agent bff shared tests evals scripts
 
   - id: typecheck
     name: python:3.12-slim

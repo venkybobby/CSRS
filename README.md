@@ -164,6 +164,15 @@ Being direct about this rather than claiming untested code works:
   $1,200 of deductible met, but M1010's seeded accumulators are all $0.00, so the engine
   produces $1,150 with no coinsurance. The old figures were M1002's accumulator profile printed
   under George Ellery's name — invisible while only the output was shown.
+
+  That bug is now structurally impossible rather than merely fixed. The fixtures are
+  **generated**, not written: `python scripts/generate_preview_fixtures.py` builds
+  `frontend/src/fixtures/previewPanes.json` from `db/seed` through the real calculator and from
+  `evals/demo_scripts.yaml`, and `tests/unit/test_preview_fixtures.py` re-derives it on every CI
+  run and fails if the committed copy differs. A changed rate, an edited accumulator, a
+  calculator fix, or a reworded question in the eval file all break the build instead of quietly
+  making the screenshots wrong. Only prose the engine does not own (refusal message text, audit
+  ids) is still hand-written in the TSX.
 - **Not done at all**: no GCP resources were created (no live Cloud SQL, Agent Engine, Cloud Run,
   or IAP resources) and no Terraform was applied — this stays code-only until you're ready to
   provision real infrastructure and review the cost/scope of doing so.

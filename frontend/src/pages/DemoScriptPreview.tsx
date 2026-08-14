@@ -3,179 +3,61 @@
 // DateOfServicePreview (/?preview), which covers the date-of-service
 // outcomes and the prior-auth banner.
 //
-// Every dollar figure below was produced by running the real calculator
-// (csr_agent.calculator.individual / .family) against db/seed, not computed
-// by hand, and each one matches the expected_fields already pinned in
-// evals/demo_scripts.yaml. Message strings come from shared/messages.py's
-// builders. Fixtures that merely LOOK right are worse than no fixtures --
-// they turn a screenshot into a plausible-looking claim about behavior the
-// engine may not have.
+// Nothing factual is typed in this file. Questions, member ids and dates come
+// from evals/demo_scripts.yaml; names, plans, rates and every dollar figure
+// come from db/seed through the real calculator. Both arrive via the
+// generated src/fixtures/previewPanes.json, which
+// tests/unit/test_preview_fixtures.py re-derives and compares on every CI
+// run -- so these panes cannot quietly disagree with either the engine or
+// the cases they claim to depict.
+//
+// What IS written here: refusal message text (owned by shared/messages.py,
+// mirrored by hand for MVP1 like types.ts) and audit ids, which are opaque.
 import { PreviewPane, ROW } from "../components/PreviewPane";
+import { pane, priced } from "../fixtures/panes";
 import type { CostEstimateResult, EligibilityResult } from "../types";
 
-function member(
-  memberId: string,
-  name: string,
-  planId: string,
-  tier: "INDIVIDUAL" | "FAMILY",
-): EligibilityResult {
+function eligibility(id: string): EligibilityResult {
+  const { member_id, priced: p } = priced(id);
   return {
-    member_id: memberId,
+    member_id,
     found: true,
-    name,
-    plan_id: planId,
-    tier,
+    name: p.member_name,
+    plan_id: p.plan_id,
+    tier: p.tier,
     status: "ACTIVE",
-    coverage_start: "2026-01-01",
-    coverage_end: null,
+    coverage_start: p.coverage_start,
+    coverage_end: p.coverage_end,
     warning: null,
     evaluated_as_of: null,
   };
 }
 
-// demo_1 -- partial deductible then coinsurance. The everyday case: the
-// deductible absorbs part of the rate and coinsurance applies to the rest.
-const demo1: CostEstimateResult = {
-  response_type: "STANDARD_COST",
-  eligibility: member("M1002", "Robert Chen", "MER-SLV-2026", "INDIVIDUAL"),
-  plan_display_name: "Meridian Silver 2026",
-  procedure: {
-    query: "MRI on his knee",
-    status: "MATCHED",
-    cpt_code: "73721",
-    common_name: "MRI Knee",
-    negotiated_rate: "1150.00",
-  },
-  breakdown: {
-    negotiated_rate: "1150.00",
-    deductible_individual: "1500.00",
-    deductible_met_ytd: "1200.00",
-    deductible_remaining: "300.00",
-    applied_to_deductible: "300.00",
-    balance_after_deductible: "850.00",
-    coinsurance_pct: "0.20",
-    coinsurance_amount: "170.00",
-    member_cost_before_cap: "470.00",
-    oop_remaining: "2800.00",
-    oop_cap_triggered: false,
-    triggering_threshold: "N/A",
-    member_cost: "470.00",
-    prior_auth_required: false,
-  },
-  date_of_service: null,
-  message: "",
-  audit_id: "1f0a7c94-6d21-4e38-b5a9-2c8e04f7b613",
-};
+// Every priced demo case renders the same way -- only the member, the code
+// and the arithmetic differ, and all three are generated.
+function standardCost(id: string, auditId: string): CostEstimateResult {
+  const { priced: p } = priced(id);
+  return {
+    response_type: "STANDARD_COST",
+    eligibility: eligibility(id),
+    plan_display_name: p.plan_display_name,
+    procedure: {
+      query: p.common_name,
+      status: "MATCHED",
+      cpt_code: p.cpt_code,
+      common_name: p.common_name,
+      negotiated_rate: p.negotiated_rate,
+    },
+    breakdown: p.breakdown,
+    date_of_service: null,
+    message: "",
+    audit_id: auditId,
+  };
+}
 
-// demo_2 -- the OOP cap binds. $1,860 of coinsurance is owed on paper but
-// only $150 of out-of-pocket room remains, so the member owes $150. The
-// capped row is the whole point of the screenshot.
-const demo2: CostEstimateResult = {
-  response_type: "STANDARD_COST",
-  eligibility: member("M1004", "James Whitaker", "MER-BRZ-2026", "INDIVIDUAL"),
-  plan_display_name: "Meridian Bronze 2026",
-  procedure: {
-    query: "knee surgery",
-    status: "MATCHED",
-    cpt_code: "29881",
-    common_name: "Knee Arthroscopy/Surgery",
-    negotiated_rate: "6200.00",
-  },
-  breakdown: {
-    negotiated_rate: "6200.00",
-    deductible_individual: "3000.00",
-    deductible_met_ytd: "3000.00",
-    deductible_remaining: "0.00",
-    applied_to_deductible: "0.00",
-    balance_after_deductible: "6200.00",
-    coinsurance_pct: "0.30",
-    coinsurance_amount: "1860.00",
-    member_cost_before_cap: "1860.00",
-    oop_remaining: "150.00",
-    oop_cap_triggered: true,
-    triggering_threshold: "N/A",
-    member_cost: "150.00",
-    prior_auth_required: false,
-  },
-  date_of_service: null,
-  message: "",
-  audit_id: "2b6d38e1-90fc-4a75-8e42-7d1c5b3f0a29",
-};
-
-// demo_3a / demo_3b -- same family, same plan, same procedure, same $1,860
-// total. The spec warns that identical outputs would indicate a broken
-// per-member accumulator lookup; what must differ is the OOP position, not
-// the dollar total (see the note in evals/demo_scripts.yaml and
-// tests/unit/test_calculator_family.py). Shot side by side precisely so the
-// differing rows are visible next to the matching one.
-const demo3a: CostEstimateResult = {
-  response_type: "STANDARD_COST",
-  eligibility: member("M1006", "Miguel Santos", "MER-BRZ-2026", "FAMILY"),
-  plan_display_name: "Meridian Bronze 2026",
-  procedure: {
-    query: "knee surgery",
-    status: "MATCHED",
-    cpt_code: "29881",
-    common_name: "Knee Arthroscopy/Surgery",
-    negotiated_rate: "6200.00",
-  },
-  breakdown: {
-    negotiated_rate: "6200.00",
-    deductible_individual: "3000.00",
-    deductible_met_ytd: "3000.00",
-    deductible_remaining: "0.00",
-    applied_to_deductible: "0.00",
-    balance_after_deductible: "6200.00",
-    coinsurance_pct: "0.30",
-    coinsurance_amount: "1860.00",
-    member_cost_before_cap: "1860.00",
-    oop_remaining: "3100.00",
-    oop_cap_triggered: false,
-    triggering_threshold: "INDIVIDUAL",
-    member_cost: "1860.00",
-    prior_auth_required: false,
-  },
-  date_of_service: null,
-  message: "",
-  audit_id: "3c9e51f7-4a08-4b62-9d17-6e2f8a0c4d51",
-};
-
-const demo3b: CostEstimateResult = {
-  response_type: "STANDARD_COST",
-  eligibility: member("M1007", "Hannah Santos", "MER-BRZ-2026", "FAMILY"),
-  plan_display_name: "Meridian Bronze 2026",
-  procedure: {
-    query: "knee surgery",
-    status: "MATCHED",
-    cpt_code: "29881",
-    common_name: "Knee Arthroscopy/Surgery",
-    negotiated_rate: "6200.00",
-  },
-  breakdown: {
-    negotiated_rate: "6200.00",
-    deductible_individual: "3000.00",
-    // $400, not $3,000: this member never met their individual deductible.
-    // The family threshold is what moved them into coinsurance.
-    deductible_met_ytd: "400.00",
-    deductible_remaining: "0.00",
-    applied_to_deductible: "0.00",
-    balance_after_deductible: "6200.00",
-    coinsurance_pct: "0.30",
-    coinsurance_amount: "1860.00",
-    member_cost_before_cap: "1860.00",
-    oop_remaining: "6100.00",
-    oop_cap_triggered: false,
-    triggering_threshold: "FAMILY",
-    member_cost: "1860.00",
-    prior_auth_required: false,
-  },
-  date_of_service: null,
-  message: "",
-  audit_id: "4d176208-b3ec-4f95-a8d0-1b5c7e9f2a64",
-};
-
-// demo_4 -- termed member. check_eligibility blocks before any procedure
-// lookup runs, so there is no CPT and no breakdown to show.
+// demo_4 -- check_eligibility blocks before any procedure lookup runs, so
+// there is no CPT and no breakdown. Wording from
+// shared/messages.py::termed_member_message.
 const demo4: CostEstimateResult = {
   response_type: "TERMED_BLOCK",
   eligibility: {
@@ -194,9 +76,10 @@ const demo4: CostEstimateResult = {
   audit_id: "5e28734f-c1a9-4d06-b73e-8f4a2c6d1b95",
 };
 
-// demo_5 -- the honest miss. Cardiac CT is not on the rate sheet at all, so
-// resolve_procedure returns NOT_ON_FILE and the pipeline never runs: hence
-// eligibility null and audit_id null, per the note in types.ts.
+// demo_5 -- Cardiac CT is not on the rate sheet at all, so resolve_procedure
+// returns NOT_ON_FILE and the pipeline never runs: hence eligibility null and
+// audit_id null, per the note in types.ts. Wording from
+// shared/messages.py::rate_not_found_message.
 const demo5: CostEstimateResult = {
   response_type: "RATE_NOT_FOUND",
   eligibility: null,
@@ -213,29 +96,25 @@ export function DemoScriptPreview() {
     <div className="query-page" style={{ maxWidth: 1100 }}>
       <h1>CSRSupport</h1>
       <p className="subtitle">
-        Demo script cases 1&ndash;5 &mdash; fixtures from db/seed, figures from the real calculator
+        Demo script cases 1&ndash;5 &mdash; questions from evals/demo_scripts.yaml, figures from
+        the real calculator over db/seed
       </p>
 
       <div style={ROW}>
         <PreviewPane
           id="demo-1-partial-deductible"
           title="Demo 1 — partial deductible + coinsurance"
-          ask={{
-            caseId: "demo_1_partial_deductible_and_coinsurance",
-            memberId: "M1002",
-            question: "M1002 wants an MRI on his knee, what does he owe?",
-          }}
-          result={demo1}
+          ask={pane("demo-1-partial-deductible")}
+          result={standardCost(
+            "demo-1-partial-deductible",
+            "1f0a7c94-6d21-4e38-b5a9-2c8e04f7b613",
+          )}
         />
         <PreviewPane
           id="demo-2-oop-cap"
           title="Demo 2 — out-of-pocket cap binds"
-          ask={{
-            caseId: "demo_2_oop_max_binding",
-            memberId: "M1004",
-            question: "What's James Whitaker M1004 looking at for knee surgery?",
-          }}
-          result={demo2}
+          ask={pane("demo-2-oop-cap")}
+          result={standardCost("demo-2-oop-cap", "2b6d38e1-90fc-4a75-8e42-7d1c5b3f0a29")}
         />
       </div>
 
@@ -248,22 +127,20 @@ export function DemoScriptPreview() {
         <PreviewPane
           id="demo-3a-family-individual-threshold"
           title="Demo 3a — same $1,860, individual threshold"
-          ask={{
-            caseId: "demo_3a_embedded_family_m1006",
-            memberId: "M1006",
-            question: "Same question for M1007 and M1006 -- knee surgery",
-          }}
-          result={demo3a}
+          ask={pane("demo-3a-family-individual-threshold")}
+          result={standardCost(
+            "demo-3a-family-individual-threshold",
+            "3c9e51f7-4a08-4b62-9d17-6e2f8a0c4d51",
+          )}
         />
         <PreviewPane
           id="demo-3b-family-family-threshold"
           title="Demo 3b — same $1,860, family threshold"
-          ask={{
-            caseId: "demo_3b_embedded_family_m1007",
-            memberId: "M1007",
-            question: "Same question for M1007 and M1006 -- knee surgery",
-          }}
-          result={demo3b}
+          ask={pane("demo-3b-family-family-threshold")}
+          result={standardCost(
+            "demo-3b-family-family-threshold",
+            "4d176208-b3ec-4f95-a8d0-1b5c7e9f2a64",
+          )}
         />
       </div>
 
@@ -271,21 +148,13 @@ export function DemoScriptPreview() {
         <PreviewPane
           id="demo-4-termed-block"
           title="Demo 4 — termed member, blocked"
-          ask={{
-            caseId: "demo_4_termed_member_block",
-            memberId: "M1005",
-            question: "M1005 -- anything, what do they owe?",
-          }}
+          ask={pane("demo-4-termed-block")}
           result={demo4}
         />
         <PreviewPane
           id="demo-5-honest-miss"
           title="Demo 5 — no negotiated rate on file"
-          ask={{
-            caseId: "demo_5_honest_miss",
-            memberId: "M1003",
-            question: "Cardiac CT for M1003",
-          }}
+          ask={pane("demo-5-honest-miss")}
           result={demo5}
         />
       </div>

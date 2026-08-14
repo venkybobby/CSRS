@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import type { PreviewPaneData } from "../fixtures/panes";
 import type { CostEstimateResult } from "../types";
 import { ResultPanel } from "./ResultPanel";
 
@@ -14,30 +15,6 @@ export const ROW: CSSProperties = {
   marginTop: "1.5rem",
 };
 
-// What the CSR typed, mirroring QueryPage's three form fields.
-export interface PreviewAsk {
-  // The id of the case in evals/demo_scripts.yaml this pane depicts. Printed
-  // on the card so a screenshot can be traced back to the machine-checked
-  // case that pins its figures -- otherwise the image is an unfalsifiable
-  // claim, and the whole point of these fixtures is that they are not.
-  //
-  // Optional, and rendered as an explicit "no eval case" when absent rather
-  // than left blank: a pane with nothing in this slot would read as one
-  // whose id someone forgot to fill in, when in fact it is depicting
-  // behavior the eval suite does not cover.
-  caseId?: string;
-  memberId: string;
-  // Verbatim from the eval case's `question`. Paraphrasing here would show a
-  // demo of a question no one actually runs.
-  question: string;
-  // Omitted when the CSR stated no date -- the field is optional in the real
-  // form and must not be shown filled in when it wasn't.
-  dateOfService?: string;
-  // The case's pinned `today`. Only worth showing where the outcome depends
-  // on it (a past date, the 90-day horizon, a plan-year boundary).
-  askedOn?: string;
-}
-
 // Scaffolding for the fixture preview pages only -- never rendered in the
 // real CSR flow, which reaches ResultPanel straight from QueryPage.
 //
@@ -45,6 +22,10 @@ export interface PreviewAsk {
 // can shoot each pane deterministically. Selecting on the rendered heading
 // instead would re-break on every copy change, which is exactly the kind of
 // change the screenshots exist to record.
+//
+// `ask` is the generated pane record itself rather than a hand-built prop
+// object: retyping those fields at each call site is how the question shown
+// above a result drifts from the case the pane claims to depict.
 export function PreviewPane({
   id,
   title,
@@ -53,7 +34,7 @@ export function PreviewPane({
 }: {
   id: string;
   title: string;
-  ask: PreviewAsk;
+  ask: PreviewPaneData;
   result: CostEstimateResult;
 }) {
   return (
@@ -72,24 +53,31 @@ export function PreviewPane({
       <div className="preview-ask">
         <div className="preview-ask-head">
           <span className="preview-ask-label">CSR asked</span>
-          <span className="preview-ask-case">{ask.caseId ?? "no eval case"}</span>
+          {/* Rendered as an explicit "no eval case" rather than left blank:
+              an empty slot would read as an id someone forgot to fill in,
+              when in fact the pane depicts behavior no eval case covers. */}
+          <span className="preview-ask-case">{ask.case_id ?? "no eval case"}</span>
         </div>
         <p className="preview-ask-question">&ldquo;{ask.question}&rdquo;</p>
         <dl className="preview-ask-fields">
           <div>
             <dt>Member ID</dt>
-            <dd>{ask.memberId}</dd>
+            <dd>{ask.member_id}</dd>
           </div>
-          {ask.dateOfService && (
+          {/* Shown only when the CSR stated one -- the field is optional in
+              the real form and must not appear filled in when it wasn't. */}
+          {ask.date_of_service && (
             <div>
               <dt>Date of service</dt>
-              <dd>{ask.dateOfService}</dd>
+              <dd>{ask.date_of_service}</dd>
             </div>
           )}
-          {ask.askedOn && (
+          {/* Only the cases whose outcome depends on the calendar pin a
+              `today`, so only those show one. */}
+          {ask.asked_on && (
             <div>
               <dt>Asked on</dt>
-              <dd>{ask.askedOn}</dd>
+              <dd>{ask.asked_on}</dd>
             </div>
           )}
         </dl>
