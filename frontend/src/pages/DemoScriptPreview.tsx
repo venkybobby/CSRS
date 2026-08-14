@@ -219,25 +219,50 @@ export function DemoScriptPreview() {
       <div style={ROW}>
         <PreviewPane
           id="demo-1-partial-deductible"
-          title="Demo 1 — M1002 MRI knee — partial deductible + coinsurance"
+          title="Demo 1 — partial deductible + coinsurance"
+          ask={{
+            caseId: "demo_1_partial_deductible_and_coinsurance",
+            memberId: "M1002",
+            question: "M1002 wants an MRI on his knee, what does he owe?",
+          }}
           result={demo1}
         />
         <PreviewPane
           id="demo-2-oop-cap"
-          title="Demo 2 — M1004 knee surgery — out-of-pocket cap binds"
+          title="Demo 2 — out-of-pocket cap binds"
+          ask={{
+            caseId: "demo_2_oop_max_binding",
+            memberId: "M1004",
+            question: "What's James Whitaker M1004 looking at for knee surgery?",
+          }}
           result={demo2}
         />
       </div>
 
+      {/* One question, two members, two different answers -- the ask card is
+          identical on both panes on purpose, because that is exactly what
+          the spec's warning is about: same wording in, and anything that
+          collapsed these onto one accumulator row would produce a matching
+          OOP position rather than the differing one shown here. */}
       <div style={ROW}>
         <PreviewPane
           id="demo-3a-family-individual-threshold"
-          title="Demo 3a — M1006 — same $1,860, individual threshold"
+          title="Demo 3a — same $1,860, individual threshold"
+          ask={{
+            caseId: "demo_3a_embedded_family_m1006",
+            memberId: "M1006",
+            question: "Same question for M1007 and M1006 -- knee surgery",
+          }}
           result={demo3a}
         />
         <PreviewPane
           id="demo-3b-family-family-threshold"
-          title="Demo 3b — M1007 — same $1,860, family threshold"
+          title="Demo 3b — same $1,860, family threshold"
+          ask={{
+            caseId: "demo_3b_embedded_family_m1007",
+            memberId: "M1007",
+            question: "Same question for M1007 and M1006 -- knee surgery",
+          }}
           result={demo3b}
         />
       </div>
@@ -245,12 +270,22 @@ export function DemoScriptPreview() {
       <div style={ROW}>
         <PreviewPane
           id="demo-4-termed-block"
-          title="Demo 4 — M1005 — termed member, blocked"
+          title="Demo 4 — termed member, blocked"
+          ask={{
+            caseId: "demo_4_termed_member_block",
+            memberId: "M1005",
+            question: "M1005 -- anything, what do they owe?",
+          }}
           result={demo4}
         />
         <PreviewPane
           id="demo-5-honest-miss"
-          title="Demo 5 — M1003 cardiac CT — no rate on file"
+          title="Demo 5 — no negotiated rate on file"
+          ask={{
+            caseId: "demo_5_honest_miss",
+            memberId: "M1003",
+            question: "Cardiac CT for M1003",
+          }}
           result={demo5}
         />
       </div>
