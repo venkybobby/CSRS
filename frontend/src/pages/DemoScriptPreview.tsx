@@ -1,7 +1,7 @@
-// Fixture-driven preview of the five demo-script cases from
-// evals/demo_scripts.yaml, reachable at /?preview=demo. Companion to
-// DateOfServicePreview (/?preview), which covers the date-of-service
-// outcomes and the prior-auth banner.
+// Fixture-driven preview of the demo-script cases and the Story 6 / Story 7
+// regression cases from evals/demo_scripts.yaml, reachable at /?preview=demo.
+// Companion to DateOfServicePreview (/?preview), which covers the
+// date-of-service outcomes and the prior-auth banner.
 //
 // Nothing factual is typed in this file. Questions, member ids and dates come
 // from evals/demo_scripts.yaml; names, plans, rates and every dollar figure
@@ -11,44 +11,29 @@
 // run -- so these panes cannot quietly disagree with either the engine or
 // the cases they claim to depict.
 //
-// What IS written here: refusal message text (owned by shared/messages.py,
-// mirrored by hand for MVP1 like types.ts) and audit ids, which are opaque.
+// What IS written here: response message text, which pipeline/estimate.py
+// and shared/messages.py own and this file mirrors by hand for MVP1 (the
+// same arrangement types.ts documents), and audit ids, which are opaque.
 import { PreviewPane, ROW } from "../components/PreviewPane";
-import { pane, priced } from "../fixtures/panes";
-import type { CostEstimateResult, EligibilityResult } from "../types";
-
-function eligibility(id: string): EligibilityResult {
-  const { member_id, priced: p } = priced(id);
-  return {
-    member_id,
-    found: true,
-    name: p.member_name,
-    plan_id: p.plan_id,
-    tier: p.tier,
-    status: "ACTIVE",
-    coverage_start: p.coverage_start,
-    coverage_end: p.coverage_end,
-    warning: null,
-    evaluated_as_of: null,
-  };
-}
+import { eligibilityOf, pane, priced } from "../fixtures/panes";
+import type { CostEstimateResult } from "../types";
 
 // Every priced demo case renders the same way -- only the member, the code
 // and the arithmetic differ, and all three are generated.
 function standardCost(id: string, auditId: string): CostEstimateResult {
-  const { priced: p } = priced(id);
+  const { member, procedure, breakdown } = priced(id);
   return {
     response_type: "STANDARD_COST",
-    eligibility: eligibility(id),
-    plan_display_name: p.plan_display_name,
+    eligibility: eligibilityOf(id),
+    plan_display_name: member.plan_display_name,
     procedure: {
-      query: p.common_name,
+      query: procedure.common_name,
       status: "MATCHED",
-      cpt_code: p.cpt_code,
-      common_name: p.common_name,
-      negotiated_rate: p.negotiated_rate,
+      cpt_code: procedure.cpt_code,
+      common_name: procedure.common_name,
+      negotiated_rate: procedure.negotiated_rate,
     },
-    breakdown: p.breakdown,
+    breakdown,
     date_of_service: null,
     message: "",
     audit_id: auditId,
@@ -60,18 +45,7 @@ function standardCost(id: string, auditId: string): CostEstimateResult {
 // shared/messages.py::termed_member_message.
 const demo4: CostEstimateResult = {
   response_type: "TERMED_BLOCK",
-  eligibility: {
-    member_id: "M1005",
-    found: true,
-    name: "Priya Raman",
-    plan_id: "MER-SLV-2026",
-    tier: "INDIVIDUAL",
-    status: "TERMED",
-    coverage_start: "2026-01-01",
-    coverage_end: "2026-05-31",
-    warning: null,
-    evaluated_as_of: null,
-  },
+  eligibility: eligibilityOf("demo-4-termed-block"),
   message: "Priya Raman is not eligible as of 2026-05-31. Do not quote a cost.",
   audit_id: "5e28734f-c1a9-4d06-b73e-8f4a2c6d1b95",
 };
@@ -91,13 +65,65 @@ const demo5: CostEstimateResult = {
   audit_id: null,
 };
 
+// --- Story 6: two different regulatory facts, two different screens -------
+//
+// Same CPT (S8092, which has a NULL negotiated_rate AND is excluded on
+// Bronze) asked of two members on different plans. Bronze must say "not a
+// covered benefit"; Silver must say "no rate on file". Dana's requirement is
+// that these never look the same, so they are shown adjacently -- the only
+// arrangement in which "visually distinct" is actually checkable.
+
+// Wording from pipeline/estimate.py's ExclusionResult branch.
+const exclusion: CostEstimateResult = {
+  response_type: "EXCLUSION",
+  eligibility: eligibilityOf("exclusion-bronze"),
+  cpt_code: "S8092",
+  common_name: "Acupuncture",
+  plan_id: pane("exclusion-bronze").member.plan_id,
+  message:
+    "This procedure (S8092 -- Acupuncture) is excluded from Meridian Bronze 2026. It is " +
+    "not a covered benefit. Do not quote a cost.",
+  audit_id: "6a3f92d4-8c17-4e05-b6a8-2f9d41c73b8e",
+};
+
+// Same code, different plan. Caught inside estimate_member_cost rather than
+// by resolve_procedure, so unlike demo_5 this one DOES carry an eligibility
+// block and an audit id. Wording from
+// shared/messages.py::rate_not_found_message.
+const rateNotFound: CostEstimateResult = {
+  response_type: "RATE_NOT_FOUND",
+  eligibility: eligibilityOf("rate-not-found-silver"),
+  procedure_query: "acupuncture",
+  message:
+    "We don't have a negotiated rate on file for acupuncture. Do not estimate. Please " +
+    "transfer to Member Services supervisor or advise the member we'll call back with a " +
+    "confirmed cost.",
+  audit_id: "7b4a03e5-9d28-4f16-a719-3e0c52d84c9f",
+};
+
+// Preventive short-circuits before accumulators are read at all, which is
+// why it carries a flat $0 and no breakdown. Wording from
+// pipeline/estimate.py's preventive branch.
+const preventive: CostEstimateResult = {
+  response_type: "PREVENTIVE_ZERO_COST",
+  eligibility: eligibilityOf("preventive-zero-cost"),
+  cpt_code: "45380",
+  common_name: "Colonoscopy, Preventive (Screening)",
+  date_of_service: null,
+  member_cost: "0.00",
+  message:
+    "Member owes $0. Colonoscopy, Preventive (Screening) (45380) is covered at 100% as a " +
+    "preventive benefit under Meridian Silver 2026. No deductible or coinsurance applies.",
+  audit_id: "8c5b14f6-0e39-4a27-b82a-4f1d63e95da0",
+};
+
 export function DemoScriptPreview() {
   return (
     <div className="query-page" style={{ maxWidth: 1100 }}>
       <h1>CSRSupport</h1>
       <p className="subtitle">
-        Demo script cases 1&ndash;5 &mdash; questions from evals/demo_scripts.yaml, figures from
-        the real calculator over db/seed
+        Demo script cases 1&ndash;5 and the Story 6 regression pair &mdash; questions from
+        evals/demo_scripts.yaml, figures from the real calculator over db/seed
       </p>
 
       <div style={ROW}>
@@ -153,9 +179,33 @@ export function DemoScriptPreview() {
         />
         <PreviewPane
           id="demo-5-honest-miss"
-          title="Demo 5 — no negotiated rate on file"
+          title="Demo 5 — procedure never on the rate sheet"
           ask={pane("demo-5-honest-miss")}
           result={demo5}
+        />
+      </div>
+
+      <div style={ROW}>
+        <PreviewPane
+          id="exclusion-bronze"
+          title="Story 6 — S8092 on Bronze: excluded"
+          ask={pane("exclusion-bronze")}
+          result={exclusion}
+        />
+        <PreviewPane
+          id="rate-not-found-silver"
+          title="Story 6 — same S8092 on Silver: no rate"
+          ask={pane("rate-not-found-silver")}
+          result={rateNotFound}
+        />
+      </div>
+
+      <div style={ROW}>
+        <PreviewPane
+          id="preventive-zero-cost"
+          title="Preventive — covered at 100%, no accumulators read"
+          ask={pane("preventive-zero-cost")}
+          result={preventive}
         />
       </div>
     </div>

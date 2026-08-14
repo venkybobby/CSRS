@@ -98,6 +98,14 @@ Full ordered runbook: [docs/architecture/cicd-setup.md](docs/architecture/cicd-s
 
 Being direct about this rather than claiming untested code works:
 
+- **Local verification against real Postgres (2026-08-14)**: the integration suite (17 passed) and
+  the deterministic eval suite (16/16 cases) were executed against a disposable PostgreSQL 16
+  container with the real migrations and `db/seed` applied, alongside 89 passing unit tests. This
+  closes items 1-3 of [plan.md](docs/architecture/plan.md)'s Verification Plan, which previously
+  read "written, not executed". Live eval mode is still unexecuted -- it needs a deployed Agent
+  Engine -- but its preflight now fails hard (exit 1) with `AGENT_ENGINE_RESOURCE_NAME` unset,
+  instead of the old skip-and-report-success behaviour that let the post-deploy gate pass against
+  any deployment at all. Client-facing summary: [docs/MVP1_STATUS.md](docs/MVP1_STATUS.md).
 - **`cloudbuild/pr-checks.yaml` is fully green end-to-end against a real GCP project**
   (`csrs-504922`, build `1ae41168`, 9m35s): lint, typecheck, all 48 unit tests (including every
   worked numeric example from the source spec M1001–M1010, the numeric-provenance guardrail's

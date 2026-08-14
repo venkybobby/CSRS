@@ -48,7 +48,10 @@ PAGES = [
             ("demo-3a-family-individual-threshold", "Demo 3a -- family tier, individual threshold"),
             ("demo-3b-family-family-threshold", "Demo 3b -- family tier, family threshold"),
             ("demo-4-termed-block", "Demo 4 -- termed member, blocked"),
-            ("demo-5-honest-miss", "Demo 5 -- no negotiated rate on file"),
+            ("demo-5-honest-miss", "Demo 5 -- procedure never on the rate sheet"),
+            ("exclusion-bronze", "Story 6 -- S8092 on Bronze: excluded"),
+            ("rate-not-found-silver", "Story 6 -- same S8092 on Silver: no rate on file"),
+            ("preventive-zero-cost", "Preventive -- covered at 100%, member owes $0"),
         ],
     },
 ]

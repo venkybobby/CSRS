@@ -16,45 +16,28 @@
 // (M1010's coverage ends 2026-08-31, the plan year ends 2026-12-31), so a
 // floating today would silently change what the screenshot demonstrates.
 import { PreviewPane, ROW } from "../components/PreviewPane";
-import { pane, priced } from "../fixtures/panes";
-import type { CostEstimateResult, EligibilityResult } from "../types";
-
-function eligibility(id: string, overrides: Partial<EligibilityResult> = {}): EligibilityResult {
-  const { member_id, priced: p } = priced(id);
-  return {
-    member_id,
-    found: true,
-    name: p.member_name,
-    plan_id: p.plan_id,
-    tier: p.tier,
-    status: "ACTIVE",
-    coverage_start: p.coverage_start,
-    coverage_end: p.coverage_end,
-    warning: null,
-    evaluated_as_of: null,
-    ...overrides,
-  };
-}
+import { eligibilityOf, pane, priced } from "../fixtures/panes";
+import type { CostEstimateResult } from "../types";
 
 // dos_dated_yes_inside_coverage. M1010's seeded accumulators are all $0.00,
 // so the whole $1,150 rate lands on an untouched deductible and no
 // coinsurance applies -- the figure comes from the calculator, not from here.
 const datedYes: CostEstimateResult = {
   response_type: "STANDARD_COST",
-  eligibility: eligibility("dated-yes", {
+  eligibility: eligibilityOf("dated-yes", {
     warning:
       "Coverage ends 2026-08-31 -- date of service 2026-08-20 falls within the coverage period",
     evaluated_as_of: "2026-08-20",
   }),
-  plan_display_name: priced("dated-yes").priced.plan_display_name,
+  plan_display_name: priced("dated-yes").member.plan_display_name,
   procedure: {
     query: "MRI on his knee",
     status: "MATCHED",
-    cpt_code: priced("dated-yes").priced.cpt_code,
-    common_name: priced("dated-yes").priced.common_name,
-    negotiated_rate: priced("dated-yes").priced.negotiated_rate,
+    cpt_code: priced("dated-yes").procedure.cpt_code,
+    common_name: priced("dated-yes").procedure.common_name,
+    negotiated_rate: priced("dated-yes").procedure.negotiated_rate,
   },
-  breakdown: priced("dated-yes").priced.breakdown,
+  breakdown: priced("dated-yes").breakdown,
   date_of_service: "2026-08-20",
   message: "",
   audit_id: "a3f1c8e2-5d94-4b17-9e30-7c2a1f6b8d45",
@@ -65,7 +48,7 @@ const datedYes: CostEstimateResult = {
 // shared/messages.py::coverage_ended_before_dos_message.
 const datedNo: CostEstimateResult = {
   response_type: "NOT_ELIGIBLE_ON_DOS",
-  eligibility: eligibility("dated-yes", {
+  eligibility: eligibilityOf("dated-no", {
     status: "NOT_COVERED_ON_DOS",
     evaluated_as_of: "2026-09-15",
   }),
@@ -83,7 +66,7 @@ const datedNo: CostEstimateResult = {
 // shared/messages.py::plan_year_boundary_message.
 const planYear: CostEstimateResult = {
   response_type: "PLAN_YEAR_BOUNDARY",
-  eligibility: eligibility("prior-auth", { evaluated_as_of: "2027-01-20" }),
+  eligibility: eligibilityOf("plan-year-boundary", { evaluated_as_of: "2027-01-20" }),
   date_of_service: "2027-01-20",
   plan_year_end: "2026-12-31",
   message:
@@ -117,16 +100,16 @@ const pastDate: CostEstimateResult = {
 // M1002 and MRI Brain.
 const priorAuth: CostEstimateResult = {
   response_type: "STANDARD_COST",
-  eligibility: eligibility("prior-auth", { evaluated_as_of: "2026-08-20" }),
-  plan_display_name: priced("prior-auth").priced.plan_display_name,
+  eligibility: eligibilityOf("prior-auth", { evaluated_as_of: "2026-08-20" }),
+  plan_display_name: priced("prior-auth").member.plan_display_name,
   procedure: {
     query: "MRI brain",
     status: "MATCHED",
-    cpt_code: priced("prior-auth").priced.cpt_code,
-    common_name: priced("prior-auth").priced.common_name,
-    negotiated_rate: priced("prior-auth").priced.negotiated_rate,
+    cpt_code: priced("prior-auth").procedure.cpt_code,
+    common_name: priced("prior-auth").procedure.common_name,
+    negotiated_rate: priced("prior-auth").procedure.negotiated_rate,
   },
-  breakdown: priced("prior-auth").priced.breakdown,
+  breakdown: priced("prior-auth").breakdown,
   date_of_service: "2026-08-20",
   message: "",
   audit_id: "e5c71a08-3b26-4f89-a743-1d6b90c2e857",

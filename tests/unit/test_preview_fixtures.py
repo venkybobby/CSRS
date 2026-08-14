@@ -115,11 +115,49 @@ def test_priced_panes_price_only_what_the_plan_covers(committed):
         for plan in json.loads((REPO_ROOT / "db" / "seed" / "plans.json").read_text())
     }
     priced_panes = {
-        pane_id: pane for pane_id, pane in committed.items() if pane["priced"] is not None
+        pane_id: pane for pane_id, pane in committed.items() if pane["breakdown"] is not None
     }
     assert priced_panes, "no priced panes -- the guard would pass vacuously"
 
     for pane_id, pane in priced_panes.items():
-        priced = pane["priced"]
-        expected = priced["cpt_code"] in plans[priced["plan_id"]]["prior_auth_required_codes"]
-        assert priced["breakdown"]["prior_auth_required"] is expected, pane_id
+        plan = plans[pane["member"]["plan_id"]]
+        expected = pane["procedure"]["cpt_code"] in plan["prior_auth_required_codes"]
+        assert pane["breakdown"]["prior_auth_required"] is expected, pane_id
+
+
+def test_only_standard_cost_cases_carry_a_breakdown(committed):
+    """Every other outcome is a refusal or a flat $0.
+
+    This is the invariant that keeps Story 6's pair honest: S8092 has no
+    negotiated rate at all, so a breakdown appearing on either the exclusion
+    or the rate-not-found pane would mean the generator had priced something
+    the plan cannot price.
+    """
+    import yaml
+
+    cases = {
+        case["id"]: case
+        for case in yaml.safe_load((REPO_ROOT / "evals" / "demo_scripts.yaml").read_text())["cases"]
+    }
+    for pane_id, case_id in PANES_FROM_EVAL_CASES.items():
+        expected_standard = cases[case_id].get("expected_response_type") == "STANDARD_COST"
+        has_breakdown = committed[pane_id]["breakdown"] is not None
+        assert has_breakdown is expected_standard, pane_id
+
+
+def test_story_6_pair_is_the_same_code_on_different_plans(committed):
+    """The pair only demonstrates anything if the code really is identical.
+
+    Story 6 is Dana's requirement that "not a covered benefit" and "no rate
+    on file" never look the same. The evidence is weak unless both panes ask
+    about the same CPT -- otherwise the screens could differ for the trivial
+    reason that the procedures differ.
+    """
+    excluded = committed["exclusion-bronze"]
+    unpriced = committed["rate-not-found-silver"]
+    assert excluded["procedure"]["cpt_code"] == unpriced["procedure"]["cpt_code"] == "S8092"
+    assert excluded["member"]["plan_id"] != unpriced["member"]["plan_id"]
+    # The condition the whole distinction turns on: no rate on either plan,
+    # so only the exclusion list separates them.
+    assert excluded["procedure"]["negotiated_rate"] is None
+    assert unpriced["procedure"]["negotiated_rate"] is None
