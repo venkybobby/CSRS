@@ -1,9 +1,22 @@
-// Fixture-driven preview of every date-of-service outcome, reachable at
-// /?preview. Exists because these screens are otherwise hard to see: they
-// need a live agent AND a member whose coverage ends within the quotable
-// window. Fixtures are taken from db/seed (M1010, Meridian Silver 2026).
-import { ResultPanel } from "../components/ResultPanel";
+// Fixture-driven preview of every date-of-service outcome plus the
+// prior-auth banner, reachable at /?preview. Exists because these screens
+// are otherwise hard to see: they need a live agent AND a member whose
+// coverage ends within the quotable window. Fixtures are taken from db/seed
+// (M1010, Meridian Silver 2026).
+//
+// Companion page: DemoScriptPreview (/?preview=demo) covers demo-script
+// cases 1-5.
+import { PreviewPane, ROW } from "../components/PreviewPane";
 import type { CostEstimateResult, EligibilityResult } from "../types";
+
+// The day these fixtures are asked on. Every date below is positioned
+// relative to it -- 2026-08-20 must stay inside both the coverage period and
+// the 90-day quoting horizon, and 2026-07-20 must stay in the past -- so
+// moving this is a deliberate edit, not a find-and-replace. Kept as one
+// constant because the same date is otherwise restated inside the fixture
+// message text, where a stale copy is invisible until it reaches a
+// screenshot.
+const ASKED_ON = "2026-08-14";
 
 const ellery: EligibilityResult = {
   member_id: "M1010",
@@ -77,33 +90,66 @@ const pastDate: CostEstimateResult = {
   date_of_service: "2026-07-20",
   reason: "IN_PAST",
   message:
-    "Date of service 2026-07-20 is in the past (today is 2026-08-13). This tool estimates upcoming procedures only -- a past date of service is a claims question, not an estimate. Route to Claims; do not estimate.",
+    `Date of service 2026-07-20 is in the past (today is ${ASKED_ON}). This tool estimates upcoming procedures only -- a past date of service is a claims question, not an estimate. Route to Claims; do not estimate.`,
   audit_id: "d1b8e5c3-2f74-4a96-8e51-3c7d9b2a6e04",
 };
 
-function Pane({ title, result }: { title: string; result: CostEstimateResult }) {
-  return (
-    <div style={{ flex: "1 1 420px", minWidth: 380 }}>
-      <h2 style={{ fontSize: "0.9rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "#6b7280" }}>
-        {title}
-      </h2>
-      <ResultPanel result={result} />
-    </div>
-  );
-}
+// MRI Brain, not the MRI Knee above: 73721 is genuinely NOT prior-auth under
+// Meridian Silver -- db/seed/plans.json lists only 70551 and 72148 -- so
+// flipping prior_auth_required on datedYes would have produced a screenshot
+// of a determination the engine would never make. Arithmetic follows the
+// same accumulator premise as datedYes ($1,200 of $1,500 deductible met):
+// $300 to deductible, $1,100 balance, 20% coinsurance = $220, total $520,
+// under the $2,800 OOP remaining so no cap.
+const priorAuth: CostEstimateResult = {
+  response_type: "STANDARD_COST",
+  eligibility: ellery,
+  plan_display_name: "Meridian Silver 2026",
+  procedure: {
+    query: "70551",
+    status: "MATCHED",
+    cpt_code: "70551",
+    common_name: "MRI Brain",
+    negotiated_rate: "1400.00",
+  },
+  breakdown: {
+    negotiated_rate: "1400.00",
+    deductible_individual: "1500.00",
+    deductible_met_ytd: "1200.00",
+    deductible_remaining: "300.00",
+    applied_to_deductible: "300.00",
+    balance_after_deductible: "1100.00",
+    coinsurance_pct: "0.20",
+    coinsurance_amount: "220.00",
+    member_cost_before_cap: "520.00",
+    oop_remaining: "2800.00",
+    oop_cap_triggered: false,
+    triggering_threshold: "N/A",
+    member_cost: "520.00",
+    prior_auth_required: true,
+  },
+  date_of_service: "2026-08-20",
+  message: "",
+  audit_id: "e5c71a08-3b26-4f89-a743-1d6b90c2e857",
+};
 
 export function DateOfServicePreview() {
   return (
     <div className="query-page" style={{ maxWidth: 1100 }}>
       <h1>CSRSupport</h1>
-      <p className="subtitle">M1010 George Ellery — coverage 2026-01-01 to 2026-08-31 — asked on 2026-08-13</p>
-      <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", marginTop: "1.5rem" }}>
-        <Pane title="Date of service 2026-08-20 — dated yes" result={datedYes} />
-        <Pane title="Date of service 2026-09-15 — dated no" result={datedNo} />
+      <p className="subtitle">
+        M1010 George Ellery — coverage 2026-01-01 to 2026-08-31 — asked on {ASKED_ON}
+      </p>
+      <div style={ROW}>
+        <PreviewPane id="dated-yes" title="Date of service 2026-08-20 — dated yes" result={datedYes} />
+        <PreviewPane id="dated-no" title="Date of service 2026-09-15 — dated no" result={datedNo} />
       </div>
-      <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", marginTop: "1.5rem" }}>
-        <Pane title="Date of service 2027-01-20 — plan-year hard stop" result={planYear} />
-        <Pane title="Date of service 2026-07-20 — past date" result={pastDate} />
+      <div style={ROW}>
+        <PreviewPane id="plan-year-boundary" title="Date of service 2027-01-20 — plan-year hard stop" result={planYear} />
+        <PreviewPane id="past-date" title="Date of service 2026-07-20 — past date" result={pastDate} />
+      </div>
+      <div style={ROW}>
+        <PreviewPane id="prior-auth" title="Date of service 2026-08-20 — prior auth required" result={priorAuth} />
       </div>
     </div>
   );
