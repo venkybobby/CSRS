@@ -174,9 +174,14 @@ blocks any figure in a response that cannot be traced to one.
 ## Suggested next step
 
 A supervised walkthrough of the deployed dev environment with one or two
-CSRs: run the five demo-script questions through the real interface, confirm
-each screen matches what is captured in `docs/screenshots/`, and trace one
-quote's audit reference back to the audit log.
+CSRs: run the demo-script questions through the real interface, confirm each
+screen matches what is captured in `docs/screenshots/`, attempt an injection
+through the UI, and trace one quote's audit reference back to the audit log.
+
+**The run sheet for that session is `docs/CSR_WALKTHROUGH.md`** — seven
+scenarios in order (three quotes, three refusals, one adversarial), what each
+should produce, the prerequisites that need arranging beforehand, and what to
+record.
 
 That exercise closes the remaining gaps and doubles as the acceptance
 demonstration. It needs a scheduled hour and IAP access for the
