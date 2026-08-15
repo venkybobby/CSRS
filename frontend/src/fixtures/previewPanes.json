@@ -1,0 +1,380 @@
+{
+  "demo-1-partial-deductible": {
+    "case_id": "demo_1_partial_deductible_and_coinsurance",
+    "question": "M1002 wants an MRI on his knee, what does he owe?",
+    "member_id": "M1002",
+    "date_of_service": null,
+    "asked_on": null,
+    "member": {
+      "name": "Robert Chen",
+      "plan_id": "MER-SLV-2026",
+      "plan_display_name": "Meridian Silver 2026",
+      "tier": "INDIVIDUAL",
+      "status": "ACTIVE",
+      "coverage_start": "2026-01-01",
+      "coverage_end": null
+    },
+    "procedure": {
+      "cpt_code": "73721",
+      "common_name": "MRI Knee",
+      "negotiated_rate": "1150.00"
+    },
+    "breakdown": {
+      "negotiated_rate": "1150.00",
+      "deductible_individual": "1500.00",
+      "deductible_met_ytd": "1200.00",
+      "deductible_remaining": "300.00",
+      "applied_to_deductible": "300.00",
+      "balance_after_deductible": "850.00",
+      "coinsurance_pct": "0.20",
+      "coinsurance_amount": "170.00",
+      "member_cost_before_cap": "470.00",
+      "oop_remaining": "2800.00",
+      "oop_cap_triggered": false,
+      "triggering_threshold": "N/A",
+      "member_cost": "470.00",
+      "prior_auth_required": false
+    }
+  },
+  "demo-2-oop-cap": {
+    "case_id": "demo_2_oop_max_binding",
+    "question": "What's James Whitaker M1004 looking at for knee surgery?",
+    "member_id": "M1004",
+    "date_of_service": null,
+    "asked_on": null,
+    "member": {
+      "name": "James Whitaker",
+      "plan_id": "MER-BRZ-2026",
+      "plan_display_name": "Meridian Bronze 2026",
+      "tier": "INDIVIDUAL",
+      "status": "ACTIVE",
+      "coverage_start": "2026-01-01",
+      "coverage_end": null
+    },
+    "procedure": {
+      "cpt_code": "29881",
+      "common_name": "Knee Arthroscopy/Surgery",
+      "negotiated_rate": "6200.00"
+    },
+    "breakdown": {
+      "negotiated_rate": "6200.00",
+      "deductible_individual": "3000.00",
+      "deductible_met_ytd": "3000.00",
+      "deductible_remaining": "0.00",
+      "applied_to_deductible": "0.00",
+      "balance_after_deductible": "6200.00",
+      "coinsurance_pct": "0.30",
+      "coinsurance_amount": "1860.00",
+      "member_cost_before_cap": "1860.00",
+      "oop_remaining": "150.00",
+      "oop_cap_triggered": true,
+      "triggering_threshold": "N/A",
+      "member_cost": "150.00",
+      "prior_auth_required": false
+    }
+  },
+  "demo-3a-family-individual-threshold": {
+    "case_id": "demo_3a_embedded_family_m1006",
+    "question": "Same question for M1007 and M1006 -- knee surgery",
+    "member_id": "M1006",
+    "date_of_service": null,
+    "asked_on": null,
+    "member": {
+      "name": "Miguel Santos",
+      "plan_id": "MER-BRZ-2026",
+      "plan_display_name": "Meridian Bronze 2026",
+      "tier": "FAMILY",
+      "status": "ACTIVE",
+      "coverage_start": "2026-01-01",
+      "coverage_end": null
+    },
+    "procedure": {
+      "cpt_code": "29881",
+      "common_name": "Knee Arthroscopy/Surgery",
+      "negotiated_rate": "6200.00"
+    },
+    "breakdown": {
+      "negotiated_rate": "6200.00",
+      "deductible_individual": "3000.00",
+      "deductible_met_ytd": "3000.00",
+      "deductible_remaining": "0.00",
+      "applied_to_deductible": "0.00",
+      "balance_after_deductible": "6200.00",
+      "coinsurance_pct": "0.30",
+      "coinsurance_amount": "1860.00",
+      "member_cost_before_cap": "1860.00",
+      "oop_remaining": "3100.00",
+      "oop_cap_triggered": false,
+      "triggering_threshold": "INDIVIDUAL",
+      "member_cost": "1860.00",
+      "prior_auth_required": false
+    }
+  },
+  "demo-3b-family-family-threshold": {
+    "case_id": "demo_3b_embedded_family_m1007",
+    "question": "Same question for M1007 and M1006 -- knee surgery",
+    "member_id": "M1007",
+    "date_of_service": null,
+    "asked_on": null,
+    "member": {
+      "name": "Hannah Santos",
+      "plan_id": "MER-BRZ-2026",
+      "plan_display_name": "Meridian Bronze 2026",
+      "tier": "FAMILY",
+      "status": "ACTIVE",
+      "coverage_start": "2026-01-01",
+      "coverage_end": null
+    },
+    "procedure": {
+      "cpt_code": "29881",
+      "common_name": "Knee Arthroscopy/Surgery",
+      "negotiated_rate": "6200.00"
+    },
+    "breakdown": {
+      "negotiated_rate": "6200.00",
+      "deductible_individual": "3000.00",
+      "deductible_met_ytd": "400.00",
+      "deductible_remaining": "0.00",
+      "applied_to_deductible": "0.00",
+      "balance_after_deductible": "6200.00",
+      "coinsurance_pct": "0.30",
+      "coinsurance_amount": "1860.00",
+      "member_cost_before_cap": "1860.00",
+      "oop_remaining": "6100.00",
+      "oop_cap_triggered": false,
+      "triggering_threshold": "FAMILY",
+      "member_cost": "1860.00",
+      "prior_auth_required": false
+    }
+  },
+  "demo-4-termed-block": {
+    "case_id": "demo_4_termed_member_block",
+    "question": "M1005 -- anything, what do they owe?",
+    "member_id": "M1005",
+    "date_of_service": null,
+    "asked_on": null,
+    "member": {
+      "name": "Priya Raman",
+      "plan_id": "MER-SLV-2026",
+      "plan_display_name": "Meridian Silver 2026",
+      "tier": "INDIVIDUAL",
+      "status": "TERMED",
+      "coverage_start": "2026-01-01",
+      "coverage_end": "2026-05-31"
+    },
+    "procedure": null,
+    "breakdown": null
+  },
+  "demo-5-honest-miss": {
+    "case_id": "demo_5_honest_miss",
+    "question": "Cardiac CT for M1003",
+    "member_id": "M1003",
+    "date_of_service": null,
+    "asked_on": null,
+    "member": {
+      "name": "Dorothy Okafor",
+      "plan_id": "MER-GLD-2026",
+      "plan_display_name": "Meridian Gold 2026",
+      "tier": "INDIVIDUAL",
+      "status": "ACTIVE",
+      "coverage_start": "2026-01-01",
+      "coverage_end": null
+    },
+    "procedure": null,
+    "breakdown": null
+  },
+  "exclusion-bronze": {
+    "case_id": "exclusion_beats_missing_rate_on_bronze",
+    "question": "acupuncture for M1004",
+    "member_id": "M1004",
+    "date_of_service": null,
+    "asked_on": null,
+    "member": {
+      "name": "James Whitaker",
+      "plan_id": "MER-BRZ-2026",
+      "plan_display_name": "Meridian Bronze 2026",
+      "tier": "INDIVIDUAL",
+      "status": "ACTIVE",
+      "coverage_start": "2026-01-01",
+      "coverage_end": null
+    },
+    "procedure": {
+      "cpt_code": "S8092",
+      "common_name": "Acupuncture",
+      "negotiated_rate": null
+    },
+    "breakdown": null
+  },
+  "rate-not-found-silver": {
+    "case_id": "same_code_is_rate_not_found_on_silver",
+    "question": "acupuncture for M1001",
+    "member_id": "M1001",
+    "date_of_service": null,
+    "asked_on": null,
+    "member": {
+      "name": "Alice Trevino",
+      "plan_id": "MER-SLV-2026",
+      "plan_display_name": "Meridian Silver 2026",
+      "tier": "INDIVIDUAL",
+      "status": "ACTIVE",
+      "coverage_start": "2026-01-01",
+      "coverage_end": null
+    },
+    "procedure": {
+      "cpt_code": "S8092",
+      "common_name": "Acupuncture",
+      "negotiated_rate": null
+    },
+    "breakdown": null
+  },
+  "preventive-zero-cost": {
+    "case_id": "preventive_colonoscopy_resolves_without_asking",
+    "question": "M1001 wants a preventive colonoscopy",
+    "member_id": "M1001",
+    "date_of_service": null,
+    "asked_on": null,
+    "member": {
+      "name": "Alice Trevino",
+      "plan_id": "MER-SLV-2026",
+      "plan_display_name": "Meridian Silver 2026",
+      "tier": "INDIVIDUAL",
+      "status": "ACTIVE",
+      "coverage_start": "2026-01-01",
+      "coverage_end": null
+    },
+    "procedure": {
+      "cpt_code": "45380",
+      "common_name": "Colonoscopy, Preventive (Screening)",
+      "negotiated_rate": "800.00"
+    },
+    "breakdown": null
+  },
+  "dated-yes": {
+    "case_id": "dos_dated_yes_inside_coverage",
+    "question": "MRI on his knee for M1010",
+    "member_id": "M1010",
+    "date_of_service": "2026-08-20",
+    "asked_on": "2026-08-13",
+    "member": {
+      "name": "George Ellery",
+      "plan_id": "MER-SLV-2026",
+      "plan_display_name": "Meridian Silver 2026",
+      "tier": "INDIVIDUAL",
+      "status": "ACTIVE",
+      "coverage_start": "2026-01-01",
+      "coverage_end": "2026-08-31"
+    },
+    "procedure": {
+      "cpt_code": "73721",
+      "common_name": "MRI Knee",
+      "negotiated_rate": "1150.00"
+    },
+    "breakdown": {
+      "negotiated_rate": "1150.00",
+      "deductible_individual": "1500.00",
+      "deductible_met_ytd": "0.00",
+      "deductible_remaining": "1500.00",
+      "applied_to_deductible": "1150.00",
+      "balance_after_deductible": "0.00",
+      "coinsurance_pct": "0.20",
+      "coinsurance_amount": "0.00",
+      "member_cost_before_cap": "1150.00",
+      "oop_remaining": "4000.00",
+      "oop_cap_triggered": false,
+      "triggering_threshold": "N/A",
+      "member_cost": "1150.00",
+      "prior_auth_required": false
+    }
+  },
+  "dated-no": {
+    "case_id": "dos_dated_no_after_coverage_ends",
+    "question": "MRI on his knee for M1010",
+    "member_id": "M1010",
+    "date_of_service": "2026-09-15",
+    "asked_on": "2026-08-13",
+    "member": {
+      "name": "George Ellery",
+      "plan_id": "MER-SLV-2026",
+      "plan_display_name": "Meridian Silver 2026",
+      "tier": "INDIVIDUAL",
+      "status": "ACTIVE",
+      "coverage_start": "2026-01-01",
+      "coverage_end": "2026-08-31"
+    },
+    "procedure": null,
+    "breakdown": null
+  },
+  "plan-year-boundary": {
+    "case_id": "dos_plan_year_boundary_is_a_refusal",
+    "question": "MRI on his knee for M1002",
+    "member_id": "M1002",
+    "date_of_service": "2027-01-20",
+    "asked_on": "2026-11-15",
+    "member": {
+      "name": "Robert Chen",
+      "plan_id": "MER-SLV-2026",
+      "plan_display_name": "Meridian Silver 2026",
+      "tier": "INDIVIDUAL",
+      "status": "ACTIVE",
+      "coverage_start": "2026-01-01",
+      "coverage_end": null
+    },
+    "procedure": null,
+    "breakdown": null
+  },
+  "past-date": {
+    "case_id": "dos_in_past_is_a_claims_question",
+    "question": "MRI on his knee for M1002",
+    "member_id": "M1002",
+    "date_of_service": "2026-07-20",
+    "asked_on": "2026-08-13",
+    "member": {
+      "name": "Robert Chen",
+      "plan_id": "MER-SLV-2026",
+      "plan_display_name": "Meridian Silver 2026",
+      "tier": "INDIVIDUAL",
+      "status": "ACTIVE",
+      "coverage_start": "2026-01-01",
+      "coverage_end": null
+    },
+    "procedure": null,
+    "breakdown": null
+  },
+  "prior-auth": {
+    "case_id": null,
+    "question": "MRI brain for M1002",
+    "member_id": "M1002",
+    "date_of_service": "2026-08-20",
+    "asked_on": "2026-08-13",
+    "member": {
+      "name": "Robert Chen",
+      "plan_id": "MER-SLV-2026",
+      "plan_display_name": "Meridian Silver 2026",
+      "tier": "INDIVIDUAL",
+      "status": "ACTIVE",
+      "coverage_start": "2026-01-01",
+      "coverage_end": null
+    },
+    "procedure": {
+      "cpt_code": "70551",
+      "common_name": "MRI Brain",
+      "negotiated_rate": "1400.00"
+    },
+    "breakdown": {
+      "negotiated_rate": "1400.00",
+      "deductible_individual": "1500.00",
+      "deductible_met_ytd": "1200.00",
+      "deductible_remaining": "300.00",
+      "applied_to_deductible": "300.00",
+      "balance_after_deductible": "1100.00",
+      "coinsurance_pct": "0.20",
+      "coinsurance_amount": "220.00",
+      "member_cost_before_cap": "520.00",
+      "oop_remaining": "2800.00",
+      "oop_cap_triggered": false,
+      "triggering_threshold": "N/A",
+      "member_cost": "520.00",
+      "prior_auth_required": true
+    }
+  }
+}

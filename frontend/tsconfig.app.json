@@ -8,6 +8,9 @@
 
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
+    // src/fixtures/previewPanes.json is generated from db/seed and imported
+    // by the preview pages -- see src/fixtures/panes.ts.
+    "resolveJsonModule": true,
     "isolatedModules": true,
     "moduleDetection": "force",
     "noEmit": true,
