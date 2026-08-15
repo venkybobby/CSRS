@@ -56,10 +56,26 @@ read as "eventually build these":
 - Multi-procedure bundles, grievance/escalation tracking, and a
   finance-facing rate-sheet update workflow
 
-## Open question, not resolved here
+## Retention policy -- resolved, enforcement deferred
 
-`quote_audit_log` retention policy (plan §4.4) is flagged for Dana --
-commonly 6-7 years for health-plan records, not decided at MVP1 build time.
-The schema partitions by `created_at` month from day one specifically so
-that whatever the real answer turns out to be, applying it later is a
-partition-drop, not a schema migration.
+`quote_audit_log` retention is **7 years from date of creation** (Meridian,
+2026-08-15, confirmed against their claims-record retention schedule). This
+was the one open question left from the architecture plan; it is now closed.
+
+The schema partitions by `created_at` month from day one specifically so that
+applying it is a partition-drop rather than a schema migration -- 7 years
+means dropping partitions older than 84 months.
+
+What is *not* built is the enforcement itself. Two scheduled jobs belong to
+the production promotion, not to MVP1:
+
+- **forward partition creation** -- the seed script creates only the first
+  partition (`quote_audit_log_2026_08`); an insert dated past the last
+  existing partition fails outright, so this one is a hard prerequisite for
+  any environment that runs longer than a month
+- **retention partition drop** -- deleting partitions once they pass the
+  84-month boundary
+
+Neither is urgent in dev against synthetic data, and the second cannot
+matter for seven years. The first can break a long-lived environment within
+weeks and should be treated as blocking for staging.
