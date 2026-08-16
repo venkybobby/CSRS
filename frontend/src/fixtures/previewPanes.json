@@ -19,6 +19,7 @@
       "common_name": "MRI Knee",
       "negotiated_rate": "1150.00"
     },
+    "clarification": null,
     "breakdown": {
       "negotiated_rate": "1150.00",
       "deductible_individual": "1500.00",
@@ -56,6 +57,7 @@
       "common_name": "Knee Arthroscopy/Surgery",
       "negotiated_rate": "6200.00"
     },
+    "clarification": null,
     "breakdown": {
       "negotiated_rate": "6200.00",
       "deductible_individual": "3000.00",
@@ -93,6 +95,7 @@
       "common_name": "Knee Arthroscopy/Surgery",
       "negotiated_rate": "6200.00"
     },
+    "clarification": null,
     "breakdown": {
       "negotiated_rate": "6200.00",
       "deductible_individual": "3000.00",
@@ -130,6 +133,7 @@
       "common_name": "Knee Arthroscopy/Surgery",
       "negotiated_rate": "6200.00"
     },
+    "clarification": null,
     "breakdown": {
       "negotiated_rate": "6200.00",
       "deductible_individual": "3000.00",
@@ -163,6 +167,7 @@
       "coverage_end": "2026-05-31"
     },
     "procedure": null,
+    "clarification": null,
     "breakdown": null
   },
   "demo-5-honest-miss": {
@@ -181,6 +186,7 @@
       "coverage_end": null
     },
     "procedure": null,
+    "clarification": null,
     "breakdown": null
   },
   "exclusion-bronze": {
@@ -203,6 +209,7 @@
       "common_name": "Acupuncture",
       "negotiated_rate": null
     },
+    "clarification": null,
     "breakdown": null
   },
   "rate-not-found-silver": {
@@ -225,6 +232,7 @@
       "common_name": "Acupuncture",
       "negotiated_rate": null
     },
+    "clarification": null,
     "breakdown": null
   },
   "preventive-zero-cost": {
@@ -247,6 +255,7 @@
       "common_name": "Colonoscopy, Preventive (Screening)",
       "negotiated_rate": "800.00"
     },
+    "clarification": null,
     "breakdown": null
   },
   "dated-yes": {
@@ -269,6 +278,7 @@
       "common_name": "MRI Knee",
       "negotiated_rate": "1150.00"
     },
+    "clarification": null,
     "breakdown": {
       "negotiated_rate": "1150.00",
       "deductible_individual": "1500.00",
@@ -302,6 +312,7 @@
       "coverage_end": "2026-08-31"
     },
     "procedure": null,
+    "clarification": null,
     "breakdown": null
   },
   "plan-year-boundary": {
@@ -320,6 +331,7 @@
       "coverage_end": null
     },
     "procedure": null,
+    "clarification": null,
     "breakdown": null
   },
   "past-date": {
@@ -338,6 +350,45 @@
       "coverage_end": null
     },
     "procedure": null,
+    "clarification": null,
+    "breakdown": null
+  },
+  "clarify-ambiguous-mri": {
+    "case_id": "bare_procedure_family_asks_which_one",
+    "question": "M1001 wants an MRI",
+    "member_id": "M1001",
+    "date_of_service": null,
+    "asked_on": null,
+    "member": {
+      "name": "Alice Trevino",
+      "plan_id": "MER-SLV-2026",
+      "plan_display_name": "Meridian Silver 2026",
+      "tier": "INDIVIDUAL",
+      "status": "ACTIVE",
+      "coverage_start": "2026-01-01",
+      "coverage_end": null
+    },
+    "procedure": null,
+    "clarification": {
+      "clarifying_question": "'M1001 wants an MRI' could be more than one procedure -- which one is this?",
+      "candidates": [
+        {
+          "cpt_code": "70551",
+          "common_name": "MRI Brain",
+          "score": 100.0
+        },
+        {
+          "cpt_code": "72148",
+          "common_name": "MRI Low Back",
+          "score": 100.0
+        },
+        {
+          "cpt_code": "73721",
+          "common_name": "MRI Knee",
+          "score": 100.0
+        }
+      ]
+    },
     "breakdown": null
   },
   "prior-auth": {
@@ -360,6 +411,7 @@
       "common_name": "MRI Brain",
       "negotiated_rate": "1400.00"
     },
+    "clarification": null,
     "breakdown": {
       "negotiated_rate": "1400.00",
       "deductible_individual": "1500.00",
