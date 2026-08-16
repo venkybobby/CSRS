@@ -305,6 +305,39 @@ def _sequence_failure(expected: list[str], actual: list[str]) -> str | None:
     return None
 
 
+def _live_result_payload(payloads: list[dict]) -> dict | None:
+    """The structured result a CSR would actually be shown, from the trace.
+
+    Mirrors bff/app/main.py's own reconstruction, including its fallback for
+    the two resolve_procedure-only outcomes that never reach the pipeline and
+    therefore carry no response_type of their own. Asserting against anything
+    else would test a screen no CSR can reach.
+
+    This exists because live mode used to assert only the tool SEQUENCE, the
+    eligibility-before-pricing rule and the numeric guardrail -- nothing about
+    the outcome. A case expecting NEEDS_CLARIFICATION therefore passed as long
+    as resolve_procedure was called at all, even when the agent went on to
+    price something: extra calls are allowed on purpose (see
+    _sequence_failure), so "asked which one" and "picked one and priced it"
+    were indistinguishable to this gate. That is precisely the regression the
+    post-deploy gate exists to catch.
+    """
+    for payload in reversed(payloads):
+        if payload.get("response_type"):
+            return payload
+    for payload in reversed(payloads):
+        if payload.get("status") == "NEEDS_CLARIFICATION":
+            return {**payload, "response_type": "NEEDS_CLARIFICATION"}
+        if payload.get("status") == "NOT_ON_FILE":
+            # No message synthesized: live mode asserts the outcome KIND, not
+            # wording. The canonical text is already pinned deterministically.
+            return {
+                "response_type": "RATE_NOT_FOUND",
+                "procedure_query": payload.get("query", ""),
+            }
+    return None
+
+
 def _live_message(case: dict) -> str:
     """The message the BFF would send for this case.
 
@@ -433,6 +466,47 @@ def run_live(
                     f"numeric-provenance guardrail tripped on a known-good case; "
                     f"unverified figures {guardrail.violating_tokens}"
                 )
+
+            # What the CSR ends up seeing. Deliberately narrower than the
+            # deterministic checks: the arithmetic is already pinned offline,
+            # so what this adds is that the deployed agent reached the same
+            # KIND of answer -- a refusal stayed a refusal, a question stayed
+            # a question, and nothing got priced that should not have been.
+            #
+            # Skipped for any case that pins `today`. Those assert behavior
+            # relative to a calendar position, and the deployed agent runs on
+            # the real clock -- there is no way to hand it a fixed date, which
+            # is exactly why deterministic mode exists for them. Asserting
+            # here anyway reports the calendar as a regression: at a real
+            # 2026-08-16, dos_plan_year_boundary's 2027-01-20 service date is
+            # beyond the 90-day horizon, so BEYOND_MAX_HORIZON correctly fires
+            # before the plan-year rule is ever reached. The tool sequence and
+            # guardrail checks above are date-independent and still apply.
+            expected_type = case.get("expected_response_type")
+            expected_candidates = case.get("expected_candidate_cpt_codes")
+            if case.get("today"):
+                expected_type = expected_candidates = None
+            if expected_type or expected_candidates:
+                live_result = _live_result_payload(tool_payloads)
+                if live_result is None:
+                    failures.append(
+                        "no structured tool result in the trace to check the outcome against"
+                    )
+                else:
+                    actual_type = live_result.get("response_type")
+                    if expected_type and actual_type != expected_type:
+                        failures.append(
+                            f"response_type: expected {expected_type!r}, got {actual_type!r}"
+                        )
+                    if expected_candidates is not None:
+                        actual = sorted(
+                            c.get("cpt_code") for c in live_result.get("candidates", [])
+                        )
+                        if actual != sorted(expected_candidates):
+                            failures.append(
+                                f"candidates: expected {sorted(expected_candidates)}, "
+                                f"got {actual}"
+                            )
 
             outcomes.append((case_id, "; ".join(failures) if failures else None))
         except Exception as exc:
