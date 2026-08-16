@@ -142,18 +142,35 @@ walkthrough and a decision to promote beyond dev.
 
 ---
 
-## Open question needing a Meridian decision
+## Resolved: audit-log retention
 
-**How long must `quote_audit_log` records be retained?**
+**How long must `quote_audit_log` records be retained? — 7 years from date
+of creation.**
 
-This has been flagged as an open question since the architecture plan and is
-still unanswered. Health-plan records are commonly kept 6–7 years, but we
-should not guess on Meridian's behalf.
+Decided by Meridian on 2026-08-15 and confirmed with their Compliance
+function before answering: quote records follow Meridian's existing
+claims-record retention schedule rather than a number chosen for this
+system. This was the only open question carried forward from the
+architecture plan, and it is now closed.
 
-It is **not blocking the build**: the audit table is partitioned by month
-from day one specifically so that whatever the answer turns out to be,
-applying it later is a partition drop rather than a schema migration and data
-backfill. But it should be settled before production data accumulates.
+The answer costs nothing to adopt. The audit table has been partitioned by
+month since the first migration precisely so that a retention rule is a
+partition drop rather than a schema migration and data backfill; 7 years
+means dropping partitions older than 84 months.
+
+**What this does not yet include is enforcement.** Two scheduled jobs are
+described but not built, and both belong to the production promotion rather
+than to MVP1:
+
+- **Forward partition creation.** The seed script creates only the first
+  monthly partition. An insert dated beyond the last existing partition
+  fails outright, so any environment that runs longer than a month needs
+  this before it is used in earnest. This should be treated as blocking for
+  staging — it is the more urgent of the two by a wide margin.
+- **Retention partition drop.** Removing partitions once they pass the
+  84-month boundary. By construction this cannot matter for seven years.
+
+Neither affects the dev environment, which holds only synthetic data.
 
 ---
 
