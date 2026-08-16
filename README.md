@@ -3,7 +3,9 @@
 An internal AI agent for Meridian Health Plans Customer Service Reps: type a plain-English
 question plus a member ID, get back eligibility status and an auditable, deterministically
 calculated out-of-pocket cost estimate. **CSR-internal only — not a patient/member-facing
-product.** Full architecture: [docs/architecture/plan.md](docs/architecture/plan.md).
+product.** Full architecture: [docs/architecture/plan.md](docs/architecture/plan.md). Source
+requirements: [docs/meridian_csr_estimator_MVP1_stories.md](docs/meridian_csr_estimator_MVP1_stories.md)
+(v1.4, 8 user stories).
 
 The non-negotiable constraint driving every design choice here: **the LLM only routes natural
 language to tools — it never generates, computes, or restates a dollar figure.** Every number a
@@ -195,9 +197,20 @@ Being direct about this rather than claiming untested code works:
   or IAP resources) and no Terraform was applied — this stays code-only until you're ready to
   provision real infrastructure and review the cost/scope of doing so.
 
+## Deliberate decisions the spec asked to see recorded here
+
+**No deductible proration for mid-year coverage starts.** A member whose coverage begins
+part-way through the plan year (M1008, `coverage_start` 2026-07-01) is subject to the *full*
+plan-year deductible, not a prorated share of it. This matches standard plan design and is a
+stated demo-scope assumption in the source spec, which asks specifically that it be recorded in
+this README "as an explicit decision, not an oversight" — so: it is a decision. Nothing in the
+calculator prorates, and nothing is missing. M1008 exists in `db/seed/members.json` to exercise
+this path, not a particular cost scenario.
+
 ## A note on the spec's own internal inconsistency
 
-The source spec (`meridian_csr_estimator_MVP1_stories.md`) states in one place that M1006 and
+The source spec ([docs/meridian_csr_estimator_MVP1_stories.md](docs/meridian_csr_estimator_MVP1_stories.md))
+states in one place that M1006 and
 M1007 "must produce different outputs" and that identical numbers would indicate a bug — but its
 own worked Demo Script #3 shows both members owing exactly $1,860 for the same knee-surgery
 query. Both are correct simultaneously once you separate "dollar total" (legitimately equal here,

@@ -1,7 +1,7 @@
 # CSRSupport MVP1 — Status
 
 **Meridian Health Plans · CSR-internal Cost Estimator**
-Prepared for: Dana Whitfield (Meridian) · Status as of 2026-08-15
+Prepared for: Dana Whitfield (Meridian) · Status as of 2026-08-16
 
 This is a build-status summary, not a sign-off. Everything below separates
 **what has been executed and observed** from **what is written but not yet
@@ -79,6 +79,32 @@ are reproduced in the screenshots:
   (individual vs family). The spec warns that identical outputs would
   indicate a broken per-member lookup; the differing rows are what show it
   is not broken.
+
+### Story coverage is now auditable, not asserted
+
+The source spec (v1.4) is in the repository at
+`docs/meridian_csr_estimator_MVP1_stories.md`. Until now it was cited by the
+README and the architecture plan but not held alongside them, which meant the
+claim "all eight stories are implemented" could not be checked by anyone who
+did not already have the file. It can be checked now, story by story, against
+the named test and eval cases.
+
+That audit also discharges the one qualification recorded in the demo grading
+of 2026-08-10. The M1007 "family threshold" bug was retracted as a grading
+error, but the retraction was accepted on the basis of source and API output
+supplied *as typed text rather than artifacts*. Those claims are now
+verifiable in place: the trigger-label logic is in
+`agent/csr_agent/calculator/family.py`, its single-commit history is in the
+repository, and `demo_3b` asserts the `FAMILY` label with a guard that fails
+if it ever collapses onto `demo_3a`'s `INDIVIDUAL`. Nothing rests on
+transcription any more.
+
+**One gap the audit did find**, recorded here rather than quietly fixed: the
+prior-authorisation flag (Story 4) is covered by the integration suite in both
+directions and appears in the screenshots, but it has no case in the eval
+suite. That means it is *verified* but not *gated* — a regression that stopped
+the warning from surfacing would not fail the post-deploy check. It is a small
+addition to `evals/demo_scripts.yaml` and worth making before production.
 
 ---
 
