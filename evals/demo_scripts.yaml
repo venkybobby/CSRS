@@ -110,6 +110,42 @@ cases:
     expected_response_type: "STANDARD_COST"
     expected_tool_sequence: [check_eligibility, resolve_procedure, estimate_member_cost]
 
+  # --- Ambiguity above the match threshold --------------------------------
+  #
+  # The clarify gate used to run only BELOW the match threshold, so a query
+  # that tied across several codes at a high score was resolved silently
+  # while a slightly weaker phrasing of the same question was asked about.
+  # Bare "MRI" returned MRI Brain without asking; "an MRI" asked. Every
+  # figure on that screen would have been correct arithmetic about the wrong
+  # body part.
+  #
+  # Gated here rather than only in tests/unit/test_rate_matcher.py because
+  # this is the one failure mode the deployed agent can reintroduce on its
+  # own: the tool can return NEEDS_CLARIFICATION correctly and the model can
+  # still answer over the top of it by picking a procedure itself.
+
+  - id: bare_procedure_family_asks_which_one
+    question: "M1001 wants an MRI"
+    member_id: "M1001"
+    expected_cpt_code: null  # nothing may be priced until the CSR says which
+    expected_response_type: "NEEDS_CLARIFICATION"
+    expected_tool_sequence: [check_eligibility, resolve_procedure]
+    # All three MRI codes must be on offer. Two would mean the tie check found
+    # some of the ambiguity and silently resolved the rest.
+    expected_candidate_cpt_codes: ["70551", "72148", "73721"]
+
+  - id: qualified_procedure_does_not_ask
+    question: "M1001 wants an MRI on his knee"
+    member_id: "M1001"
+    expected_cpt_code: "73721"
+    expected_response_type: "STANDARD_COST"
+    expected_tool_sequence: [check_eligibility, resolve_procedure, estimate_member_cost]
+    # The pair is the assertion. If these ever return the same response_type
+    # the gate is dead: either it stopped asking when it should, or it
+    # started asking when the CSR had already said which one.
+    must_differ_from: bare_procedure_family_asks_which_one
+    must_differ_fields: [response_type]
+
   # --- Exclusion vs. no-rate ---------------------------------------------
   #
   # The subtlest trap in the set: S8092 has a NULL negotiated_rate AND is

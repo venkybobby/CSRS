@@ -53,7 +53,7 @@ SLIDES = [
         "title": "It is built. Here is what it refuses to do, and what we need from you.",
         "standfirst": "Eight of eight user stories implemented and verified against a live "
         "model. Three things remain. Almost none of it is engineering — and the one exception "
-        "is small, and named on slide thirteen.",
+        "is small, and named in the second of the three asks.",
         "asks_preview": [
             "One hour with two reps, this week",
             "A decision on promoting beyond development",
@@ -110,9 +110,10 @@ SLIDES = [
             "What the model does still own is working out which procedure you meant. At worst "
             "it can aim the calculator at the wrong procedure. It can never invent what the "
             "calculator returns.",
-            "So every quote names the procedure and CPT code it priced, on screen, every time. "
-            "A misroute is wrong in the open — the rep is always reading the answer to a "
-            "named question.",
+            "So two things guard it. Where a request matches several procedures equally well, "
+            "it asks which one instead of choosing. And every quote names the procedure and "
+            "CPT code it priced, on screen, every time — a misroute is wrong in the open, "
+            "never wrong in secret.",
             "It is also why every refusal you are about to see is a refusal by construction, "
             "not by good behaviour on the day.",
         ],
@@ -123,14 +124,16 @@ SLIDES = [
         "prevented. Every dollar figure comes from an ordinary function, and a separate check "
         "blocks any figure in a response that cannot be traced back to one. So if the model "
         "invents a price, that price does not reach the screen. Now, let me be precise about "
-        "the limit of that claim, because it is the first thing a sceptic should push on. The "
-        "model does still decide which procedure you meant. So at worst, it can point the "
-        "calculator at the wrong procedure — and then every figure on the screen is correct "
-        "arithmetic about the wrong thing. What it can never do is invent the arithmetic. Two "
-        "things follow. Every quote names the procedure and the CPT code it priced, on screen, "
-        "every time — so a misroute is wrong in the open, not wrong in secret. And I have one "
-        "honest gap in that to show you on slide thirteen. The distinction to hold on to is "
-        "this: it can be wrong about the question. It cannot be wrong about the arithmetic.",
+        "the limit of that claim, because your committee already pushed on it and they were "
+        "right to. The model does still decide which procedure you meant. So at worst it can "
+        "point the calculator at the wrong procedure — and then every figure on the screen is "
+        "correct arithmetic about the wrong thing. What it can never do is invent the "
+        "arithmetic. Two things guard the gap. Where a request matches several procedures "
+        "equally well, the system asks which one rather than choosing — and I will come back "
+        "to that on slide twelve, because your question is what made it true. And every quote "
+        "names the procedure and CPT code it priced, on screen, every time, so a misroute is "
+        "wrong in the open rather than wrong in secret. The distinction to hold on to is this: "
+        "it can be wrong about the question. It cannot be wrong about the arithmetic.",
     },
     {
         "kind": "scoreboard",
@@ -142,10 +145,16 @@ SLIDES = [
         "the guarantee no offline test can establish.",
         "rows": [
             ("User stories implemented", "8 / 8", "Audited against your requirements document", "ok"),
-            ("Unit tests", "91 passed", "Pure logic, no external services", "ok"),
+            ("Unit tests", "103 passed", "Pure logic, no external services", "ok"),
             ("Integration tests", "17 passed", "Against a real PostgreSQL database", "ok"),
-            ("Scenario suite, offline", "16 / 16", "Every figure pinned to your worked examples", "ok"),
-            ("Scenario suite, live", "20 / 20", "Deployed system, real language model", "ok"),
+            ("Scenario suite, offline", "18 / 18", "Every figure pinned to your worked examples", "ok"),
+            (
+                "Scenario suite, live",
+                "20 / 20",
+                "Deployed system, real language model. Re-runs at 22 cases on the next "
+                "deployment — the two added this week are gated offline today.",
+                "ok",
+            ),
             ("Adversarial attempts", "4 / 4 repelled", "Including a claimed supervisor override", "ok"),
             ("Reps who have used it", "0", "The gap this meeting exists to close", "gap"),
         ],
@@ -301,9 +310,17 @@ SLIDES = [
         "kind": "ledger",
         "tone": "quote",
         "eyebrow": "Loops you opened",
-        "title": "Four things you raised. Where each one landed.",
+        "title": "Five things you raised. Where each one landed.",
         "standfirst": "",
         "ledger": [
+            (
+                "“It picks the procedure — what if it picks wrong?”",
+                "Closed this week",
+                "Your question found two real defects. Asked for “MRI” it chose one of three "
+                "silently; asked inside a sentence it wrongly said no rate was on file. Both "
+                "fixed, both now gated in the automated checks so they cannot come back.",
+                "ok",
+            ),
             (
                 "Audit-log retention period",
                 "Closed 2026-08-15",
@@ -333,8 +350,16 @@ SLIDES = [
                 "gap",
             ),
         ],
-        "kicker": "Three closed, one waiting on Meridian.",
-        "say": "Four things this room or your team raised, and where each one landed. Retention "
+        "kicker": "Four closed, one waiting on Meridian.",
+        "say": "Five things this room or your team raised, and where each one landed. Start "
+        "with the one from this committee, because it is the one that earned its place. Your "
+        "question was: the model does not produce numbers, but it does pick the procedure — so "
+        "what happens when it picks the wrong one? We went and tested that rather than "
+        "answering it from the design, and it found two real defects. Asked for just M-R-I, it "
+        "chose one of three silently. Asked for an MRI inside an ordinary sentence, it wrongly "
+        "told the rep we had no rate on file at all. Both are fixed, and both are now in the "
+        "automated checks so they cannot come back quietly. That is what your question bought. "
+        "Then the rest. Retention "
         "is closed as of the fifteenth — seven years from creation, recorded against your "
         "claims-record schedule rather than a number we picked. The M1007 grading item is "
         "closed, and closed properly rather than by assertion. The date-of-service question, "
@@ -352,12 +377,11 @@ SLIDES = [
         "standfirst": "Seven things, volunteered rather than waited for. None of them are "
         "surprises to the team, and none of them are hidden in a footnote.",
         "points": [
-            "Choosing the right procedure is the model's job, and it is not perfect. Asked for "
-            "“an MRI” it correctly asks which one. Asked for just “MRI” it currently picks one "
-            "of the three rather than asking — the screen names what it picked, so a rep can "
-            "catch it, but it should ask. We found that this week testing the question your "
-            "committee raised. It is small, it is known, and it is being fixed before the rep "
-            "session.",
+            "A confident wrong match is still possible. If the caller says knee and means "
+            "brain, the system will price the knee correctly. We have closed the cases where "
+            "it should have asked and did not, but nothing removes this one — the mitigation "
+            "is that the screen names the procedure it priced, so the rep confirms a stated "
+            "thing rather than an unlabelled number.",
             "No rep has used the deployed interface. Everything here is verified by test; the "
             "seat in front of it has not been walked by a person.",
             "The guardrail has not been watched firing in the real interface, nor its alert "
@@ -373,14 +397,15 @@ SLIDES = [
         ],
         "kicker": "If any of these had been left for you to discover, none of the rest "
         "of this deck would be worth much.",
-        "say": "Before you ask me, here is what we are not claiming. First, the one your "
-        "committee raised. Choosing the right procedure is the model's job and it is not "
-        "perfect. Ask it for an MRI, and it correctly comes back and asks which one. Ask it "
-        "for just M-R-I, and right now it picks one of the three instead of asking. The screen "
-        "names what it picked, so a rep can catch it — but it should be asking, and that is "
-        "being fixed before your reps sit down. We found that this week, specifically because "
-        "of the question that came up in your steering meeting. Second, no rep has used the "
-        "deployed interface. The guardrail has not been watched firing in the real interface. "
+        "say": "Before you ask me, here is what we are not claiming. First, the residual from "
+        "your own question. We closed the cases where the system should have asked which "
+        "procedure and did not — but a confident wrong match is still possible. If the caller "
+        "says knee and means brain, this will price the knee, correctly. Nothing in the "
+        "architecture removes that, and I would not trust anyone who told you otherwise. What "
+        "it does is name the procedure on the screen, so your rep is confirming a stated thing "
+        "rather than reading an unlabelled number — which is a better position than they are "
+        "in today. Second, no rep has used the deployed interface. The guardrail has not been "
+        "watched firing in the real interface. "
         "Only the development environment exists — no staging, no production. Retention is "
         "recorded at seven years, but the job that actually enforces it is not built; that "
         "belongs to the production promotion and nothing is close to the boundary yet. The "
@@ -488,11 +513,12 @@ APPENDIX = [
         "number, and the audit record binds the figures to that same procedure for anyone "
         "checking afterwards. Two further guards narrow it: the calculator will only price a "
         "code the lookup just returned in that same turn — checked on the server, not taken "
-        "from the model's restated text — and where two procedures are genuinely "
-        "indistinguishable the system is designed to ask rather than choose. We found a gap in "
-        "that last one this week: asked for “an MRI” it asks which one, but asked for bare "
-        "“MRI” it currently picks. That is on slide thirteen and it is being fixed. The "
-        "residual risk after all of that is a confident wrong match — and the mitigation for "
+        "from the model's restated text — and where a request matches several procedures "
+        "equally well the system asks rather than choosing. That last guard is stronger than "
+        "it was a week ago precisely because this question was asked: testing it turned up two "
+        "cases where the system resolved silently instead of asking, and both are now fixed "
+        "and covered by the automated checks. The residual risk after all of that is a "
+        "confident wrong match — and the mitigation for "
         "that is the same as it is today without the tool: the rep confirms the procedure with "
         "the caller. The difference is that now the screen tells them exactly what to confirm.",
     ),

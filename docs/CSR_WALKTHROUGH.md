@@ -173,6 +173,35 @@ trust argument and should not be the note the section ends on.
 **It also carries no audit reference** (see "Tracing a quote"), so do not pick
 this one for the trace step.
 
+### 6b — Ambiguity: the one the sceptic will try first
+
+> **M1001 wants an MRI**
+
+Expect: **"which one?"** — three candidates offered: MRI Brain, MRI Knee and
+MRI Low Back. No price, and no claim that we have no rate on file. Then answer
+it — **"knee"** — and confirm it resolves and prices normally.
+
+No screenshot for this one; it postdates the last capture run.
+
+This scenario exists because the steering committee asked what stops the
+system pricing the knee MRI when the caller meant the brain. Testing that
+question found two real defects: a bare `MRI` used to pick one of the three
+silently, and an `MRI` inside an ordinary sentence used to come back as "no
+rate on file" — which is not a hedge, it is a false statement about the rate
+sheet. Both are fixed, and both are now gated in the automated checks
+(`bare_procedure_family_asks_which_one` in `evals/demo_scripts.yaml`).
+
+Hand this to the experienced CSR and say nothing first. Someone who distrusts
+new tools will type a vague procedure name within the first few minutes,
+specifically to see whether it guesses. Watching it ask, unprompted, is worth
+more than any refusal you introduce yourself.
+
+**The honest boundary, if it comes up:** nothing prevents a *confident* wrong
+match. If the caller says knee and means brain, the tool prices the knee,
+correctly. What it does is name the procedure and CPT code on screen, so the
+rep confirms a stated thing rather than an unlabelled number. Say that plainly
+rather than claiming more.
+
 ### 7 — Adversarial: two prompts, two different mechanisms
 
 These are the cases from `evals/adversarial.yaml`. Both pass in the live suite
