@@ -52,7 +52,8 @@ SLIDES = [
         "eyebrow": "Meridian Health Plans · CSR Cost Estimator · MVP1 review",
         "title": "It is built. Here is what it refuses to do, and what we need from you.",
         "standfirst": "Eight of eight user stories implemented and verified against a live "
-        "model. Three things remain, and none of them are engineering.",
+        "model. Three things remain. Almost none of it is engineering — and the one exception "
+        "is small, and named on slide thirteen.",
         "asks_preview": [
             "One hour with two reps, this week",
             "A decision on promoting beyond development",
@@ -105,22 +106,31 @@ SLIDES = [
         "response that cannot be traced back to one.",
         "points": [
             "If the model invents a figure, it does not reach the screen — the check fails "
-            "closed, with no matching tool output to justify it.",
-            "This is why a prompt cannot talk the system into a wrong price. The attack has "
-            "to beat arithmetic, not persuasion.",
+            "closed, with no matching function output to justify it.",
+            "What the model does still own is working out which procedure you meant. At worst "
+            "it can aim the calculator at the wrong procedure. It can never invent what the "
+            "calculator returns.",
+            "So every quote names the procedure and CPT code it priced, on screen, every time. "
+            "A misroute is wrong in the open — the rep is always reading the answer to a "
+            "named question.",
             "It is also why every refusal you are about to see is a refusal by construction, "
             "not by good behaviour on the day.",
         ],
-        "kicker": "Everything else in this deck is a consequence of that one decision.",
+        "kicker": "The distinction worth holding: it can be wrong about the question. "
+        "It cannot be wrong about the arithmetic.",
         "say": "One decision drives everything else. The language model is not allowed to "
         "produce a number. Not discouraged from it, not prompted against it — structurally "
-        "prevented. Its only job is working out which member and which procedure you are "
-        "asking about. Every dollar figure comes from an ordinary function, and a separate "
-        "check blocks any figure in a response that cannot be traced back to one of those "
-        "functions. So if the model invents a price, that price does not reach the screen. "
-        "This is the reason a clever prompt cannot talk this system into a wrong number — an "
-        "attack would have to beat arithmetic, not persuasion. Hold on to that, because "
-        "everything I show you next is a consequence of it.",
+        "prevented. Every dollar figure comes from an ordinary function, and a separate check "
+        "blocks any figure in a response that cannot be traced back to one. So if the model "
+        "invents a price, that price does not reach the screen. Now, let me be precise about "
+        "the limit of that claim, because it is the first thing a sceptic should push on. The "
+        "model does still decide which procedure you meant. So at worst, it can point the "
+        "calculator at the wrong procedure — and then every figure on the screen is correct "
+        "arithmetic about the wrong thing. What it can never do is invent the arithmetic. Two "
+        "things follow. Every quote names the procedure and the CPT code it priced, on screen, "
+        "every time — so a misroute is wrong in the open, not wrong in secret. And I have one "
+        "honest gap in that to show you on slide thirteen. The distinction to hold on to is "
+        "this: it can be wrong about the question. It cannot be wrong about the arithmetic.",
     },
     {
         "kind": "scoreboard",
@@ -339,9 +349,15 @@ SLIDES = [
         "tone": "unwatched",
         "eyebrow": "Stated plainly, before you ask",
         "title": "What we are not claiming.",
-        "standfirst": "Six things, volunteered rather than waited for. None of them are "
+        "standfirst": "Seven things, volunteered rather than waited for. None of them are "
         "surprises to the team, and none of them are hidden in a footnote.",
         "points": [
+            "Choosing the right procedure is the model's job, and it is not perfect. Asked for "
+            "“an MRI” it correctly asks which one. Asked for just “MRI” it currently picks one "
+            "of the three rather than asking — the screen names what it picked, so a rep can "
+            "catch it, but it should ask. We found that this week testing the question your "
+            "committee raised. It is small, it is known, and it is being fixed before the rep "
+            "session.",
             "No rep has used the deployed interface. Everything here is verified by test; the "
             "seat in front of it has not been walked by a person.",
             "The guardrail has not been watched firing in the real interface, nor its alert "
@@ -357,7 +373,13 @@ SLIDES = [
         ],
         "kicker": "If any of these had been left for you to discover, none of the rest "
         "of this deck would be worth much.",
-        "say": "Before you ask me, here is what we are not claiming. No rep has used the "
+        "say": "Before you ask me, here is what we are not claiming. First, the one your "
+        "committee raised. Choosing the right procedure is the model's job and it is not "
+        "perfect. Ask it for an MRI, and it correctly comes back and asks which one. Ask it "
+        "for just M-R-I, and right now it picks one of the three instead of asking. The screen "
+        "names what it picked, so a rep can catch it — but it should be asking, and that is "
+        "being fixed before your reps sit down. We found that this week, specifically because "
+        "of the question that came up in your steering meeting. Second, no rep has used the "
         "deployed interface. The guardrail has not been watched firing in the real interface. "
         "Only the development environment exists — no staging, no production. Retention is "
         "recorded at seven years, but the job that actually enforces it is not built; that "
@@ -455,6 +477,24 @@ APPENDIX = [
         "Because it structurally cannot. Every figure is computed by an ordinary function, and "
         "a separate check rejects any figure in a response that has no matching function "
         "output behind it. The check fails closed: no match, no answer.",
+    ),
+    (
+        "The model doesn't produce numbers — but it does pick the procedure. What stops it "
+        "pricing the knee MRI when the caller meant the brain MRI?",
+        "Nothing stops it choosing wrongly, and we will not pretend otherwise — that is the "
+        "honest boundary of the guarantee. What the architecture gives you is that the error "
+        "cannot be silent. Every quote names the procedure and the CPT code it priced, so the "
+        "rep is always reading the answer to a stated question rather than an unlabelled "
+        "number, and the audit record binds the figures to that same procedure for anyone "
+        "checking afterwards. Two further guards narrow it: the calculator will only price a "
+        "code the lookup just returned in that same turn — checked on the server, not taken "
+        "from the model's restated text — and where two procedures are genuinely "
+        "indistinguishable the system is designed to ask rather than choose. We found a gap in "
+        "that last one this week: asked for “an MRI” it asks which one, but asked for bare "
+        "“MRI” it currently picks. That is on slide thirteen and it is being fixed. The "
+        "residual risk after all of that is a confident wrong match — and the mitigation for "
+        "that is the same as it is today without the tool: the rep confirms the procedure with "
+        "the caller. The difference is that now the screen tells them exactly what to confirm.",
     ),
     (
         "What happens when it gets something wrong?",
@@ -993,7 +1033,14 @@ def render_qa_panel() -> str:
 
 def build() -> str:
     slides = "\n".join(render_slide(s) for s in SLIDES)
-    return f"""<title>CSRSupport Steering Review</title>
+    # The charset declaration must come first and stay within the first 1024
+    # bytes, which is all a browser sniffs before committing to an encoding.
+    # Without it, opening this file straight off disk defaults to the system
+    # codepage and every em dash and curly quote in the narration mojibakes --
+    # a hosted copy gets a charset header and looks fine, so this only shows up
+    # in exactly the offline case the deck is built for.
+    return f"""<meta charset="utf-8">
+<title>CSRSupport Steering Review</title>
 <style>{STYLE}</style>
 
 <div class="deck">
