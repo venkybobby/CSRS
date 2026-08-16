@@ -260,3 +260,91 @@ def test_no_procedure_in_query_does_not_accidentally_match(catalog):
     must not accidentally fuzzy-match some unrelated catalog entry."""
     result = match_procedure("M1005 -- anything, what do they owe?", catalog=catalog)
     assert result.status == "NOT_ON_FILE"
+
+
+# A tie above MATCH_THRESHOLD is not an identification. Regression class for
+# a real defect, found while checking a claim the client's steering committee
+# pushed back on: clearing the threshold returned MATCHED immediately and the
+# ambiguity check only ran BELOW it, so the more confidently a query tied,
+# the less likely it was to be questioned. The user-visible shape of the bug
+# is the pair below -- "an MRI" asked, and bare "MRI" did not.
+
+
+def test_bare_mri_asks_instead_of_picking_one(catalog):
+    """A bare procedure-family name ties across three codes by token subset
+    ("mri" is a subset of "mri brain", "mri knee" and "mri low back" alike)
+    and must be questioned rather than resolved to whichever alias happens to
+    sort first. Silently returning MRI Brain here prices the wrong body part
+    with perfectly correct arithmetic -- the exact failure the on-screen CPT
+    code exists to make visible, and one the matcher should not create in the
+    first place."""
+    result = match_procedure("MRI", catalog=catalog)
+    assert result.status == "NEEDS_CLARIFICATION"
+    assert {c.cpt_code for c in result.candidates} == {"70551", "72148", "73721"}
+
+
+def test_bare_and_qualified_mri_agree_with_each_other(catalog):
+    """The defect's tell was these two disagreeing: "an MRI" fell below the
+    threshold and asked, while "MRI" cleared it and did not. Both are equally
+    ambiguous, so both must ask."""
+    assert match_procedure("MRI", catalog=catalog).status == "NEEDS_CLARIFICATION"
+    assert match_procedure("an MRI", catalog=catalog).status == "NEEDS_CLARIFICATION"
+
+
+@pytest.mark.parametrize(
+    "query,expected_cpt",
+    [
+        ("MRI on his knee", "73721"),
+        ("brain MRI", "70551"),
+        ("mri low back", "72148"),
+        ("MRI on his back, low back pain", "72148"),
+        ("M1002 wants an MRI on his knee, what does he owe?", "73721"),
+    ],
+)
+def test_qualified_mri_still_resolves_outright(catalog, query, expected_cpt):
+    """The other half of the guard. Adding the tie check must not make the
+    system start asking about queries that already say which body part they
+    mean -- a question the CSR just answered, with a caller on hold, is the
+    fastest way to get a tool abandoned."""
+    result = match_procedure(query, catalog=catalog)
+    assert result.status == "MATCHED"
+    assert result.cpt_code == expected_cpt
+
+
+@pytest.mark.parametrize(
+    "query",
+    ["M1001 wants an MRI", "MRI scan please", "can we get an mri for her"],
+)
+def test_family_name_in_a_sentence_asks_rather_than_denying(catalog, query):
+    """The more damaging half of the same defect. token_set_ratio is diluted
+    by filler words, so a short family name inside a natural question scored
+    below even CLARIFY_THRESHOLD and fell through to NOT_ON_FILE -- telling
+    the CSR we have no negotiated rate on file for an MRI. That is not a
+    hedge, it is a false statement about the rate sheet, and it hands the CSR
+    Story 8's honest-miss script for a procedure family we very much carry."""
+    result = match_procedure(query, catalog=catalog)
+    assert result.status == "NEEDS_CLARIFICATION"
+    assert {c.cpt_code for c in result.candidates} == {"70551", "72148", "73721"}
+
+
+def test_family_check_does_not_swallow_the_honest_miss(catalog):
+    """The boundary that keeps the fix above from eating Story 8. "Cardiac CT"
+    shares no word with any procedure on the sheet -- neither "cardiac" nor
+    "ct" appears in any name or alias -- so there is no family to ask about
+    and it must still be a clean NOT_ON_FILE. If this ever starts asking, the
+    family check has become a fuzzy matcher and demo 5 is dead."""
+    assert match_procedure("Cardiac CT", catalog=catalog).status == "NOT_ON_FILE"
+    assert match_procedure("cardiac CT angiography", catalog=catalog).status == "NOT_ON_FILE"
+    assert match_procedure("M1005 -- anything, what do they owe?", catalog=catalog).status == (
+        "NOT_ON_FILE"
+    )
+
+
+def test_two_aliases_of_the_same_code_are_not_a_tie(catalog):
+    """Ambiguity means two different PROCEDURES, not two ways of naming one.
+    "mri knee" and "mri on his knee" both scoring 100 is agreement, and
+    deduplicating candidates by CPT before counting them is what stops that
+    from reading as a conflict."""
+    result = match_procedure("knee mri", catalog=catalog)
+    assert result.status == "MATCHED"
+    assert result.cpt_code == "73721"

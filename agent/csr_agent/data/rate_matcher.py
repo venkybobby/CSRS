@@ -45,6 +45,24 @@ MATCH_THRESHOLD = 90
 CLARIFY_THRESHOLD = 60
 MAX_CLARIFY_CANDIDATES = 4
 
+# How close a runner-up has to score before a win stops counting as an
+# identification and starts counting as a tie.
+#
+# The defect this closes: clearing MATCH_THRESHOLD used to return MATCHED
+# immediately, and the ambiguity check only ran BELOW it -- so the more
+# confidently a query tied, the less likely it was to be questioned. A bare
+# "MRI" scores 100 by token subset against "mri brain", "mri knee" and "mri
+# low back" alike, and the winner was whichever alias happened to sort first:
+# MRI Brain, silently, for a caller who may have meant either of the others.
+# Meanwhile "an MRI" fell below the threshold and correctly asked -- exactly
+# the wrong way round.
+#
+# This is the same shape as the colonoscopy clarify-gate defect, which was
+# closed by adding the term to AMBIGUOUS_ALWAYS below: a fix for one known
+# word rather than for the general case. This is the general case, and it is
+# why that list does not have to grow every time the rate sheet does.
+AMBIGUITY_MARGIN = 5
+
 # Turn-2 thresholds, used ONLY by resolve_clarification() when scoring the
 # CSR's answer against the candidates they were just shown. Deliberately not
 # MATCH_THRESHOLD: that 90 governs open-ended free text against the whole
@@ -148,6 +166,75 @@ def _candidates_for_query(catalog: list[RateSheetRow], terms: tuple[str, ...]) -
     return out
 
 
+def _ambiguous_family_candidates(
+    normalized: str, catalog: list[RateSheetRow]
+) -> list[ProcedureCandidate]:
+    """Procedures sharing a word the query used, when nothing scored at all.
+
+    The second half of the ambiguity defect, and the more damaging half.
+    token_set_ratio is diluted by filler, so a short family name inside a
+    natural sentence -- "M1001 wants an MRI" -- scores BELOW even
+    CLARIFY_THRESHOLD and fell through to NOT_ON_FILE. That tells the CSR we
+    have no negotiated rate on file for an MRI, which is not a hedge or a
+    near-miss but a false statement about the rate sheet, and Story 8's
+    honest-miss wording is exactly the wrong script for it.
+
+    So before declaring a miss, check whether the CSR used a word that
+    several DIFFERENT procedures share. If they did, they named a family and
+    not a procedure, and the answer is a question rather than a denial. A
+    word belonging to one procedure proves nothing here -- that query would
+    have scored above threshold already -- and a word belonging to none, as
+    in "cardiac CT", still correctly falls through to the honest miss.
+    """
+    by_token: dict[str, set[str]] = {}
+    rows_by_cpt: dict[str, RateSheetRow] = {}
+    for row in catalog:
+        rows_by_cpt[row.cpt_code] = row
+        for haystack in (row.common_name, *row.search_aliases):
+            for token in _normalize_query(haystack).split():
+                by_token.setdefault(token, set()).add(row.cpt_code)
+
+    for token in normalized.split():
+        cpts = by_token.get(token, set())
+        if len(cpts) > 1:
+            return [
+                ProcedureCandidate(
+                    cpt_code=c, common_name=rows_by_cpt[c].common_name, score=100.0
+                )
+                for c in sorted(cpts)
+            ][:MAX_CLARIFY_CANDIDATES]
+    return []
+
+
+def _tied_candidates(
+    normalized: str, choices: dict[str, RateSheetRow], top_score: float
+) -> list[ProcedureCandidate]:
+    """Distinct procedures scoring within AMBIGUITY_MARGIN of the winner.
+
+    Deduplicated by CPT code, because one procedure is reachable through
+    several aliases and two aliases of the SAME code tying is not ambiguity --
+    that is just "mri knee" and "mri on his knee" both being right. Only a
+    second *code* within the margin means the query failed to pick one.
+    """
+    ranked = process.extract(
+        normalized, choices.keys(), scorer=fuzz.token_set_ratio, limit=len(choices)
+    )
+    floor = top_score - AMBIGUITY_MARGIN
+    seen: set[str] = set()
+    tied: list[ProcedureCandidate] = []
+    for text_, s, _ in ranked:
+        if s < floor:
+            break
+        r = choices[text_]
+        if r.cpt_code in seen:
+            continue
+        seen.add(r.cpt_code)
+        tied.append(ProcedureCandidate(cpt_code=r.cpt_code, common_name=r.common_name, score=s))
+        if len(tied) >= MAX_CLARIFY_CANDIDATES:
+            break
+    return tied
+
+
 def match_procedure(query: str, catalog: list[RateSheetRow] | None = None) -> ProcedureMatchResult:
     if catalog is None:
         catalog = _load_catalog_from_db()
@@ -198,6 +285,24 @@ def match_procedure(query: str, catalog: list[RateSheetRow] | None = None) -> Pr
     row = choices[matched_text]
 
     if score >= MATCH_THRESHOLD:
+        # An exact hit on a procedure's own name or one of its aliases is
+        # decisive. The CSR typed the thing itself, so there is nothing to
+        # ask about -- and asking anyway is the failure the DISAMBIGUATORS
+        # note above already warns about: a question the CSR just answered,
+        # with a caller on hold.
+        if normalized != matched_text:
+            tied = _tied_candidates(normalized, choices, score)
+            if len(tied) > 1:
+                return ProcedureMatchResult(
+                    query=query,
+                    status="NEEDS_CLARIFICATION",
+                    candidates=tied,
+                    clarifying_question=(
+                        f"'{query}' matches more than one procedure equally well -- "
+                        "which one is this?"
+                    ),
+                )
+
         return ProcedureMatchResult(
             query=query,
             status="MATCHED",
@@ -225,6 +330,17 @@ def match_procedure(query: str, catalog: list[RateSheetRow] | None = None) -> Pr
             clarifying_question=(
                 f"I found a few possible matches for '{query}' -- "
                 "could you confirm which procedure this is?"
+            ),
+        )
+
+    family = _ambiguous_family_candidates(normalized, catalog)
+    if len(family) > 1:
+        return ProcedureMatchResult(
+            query=query,
+            status="NEEDS_CLARIFICATION",
+            candidates=family,
+            clarifying_question=(
+                f"'{query}' could be more than one procedure -- which one is this?"
             ),
         )
 

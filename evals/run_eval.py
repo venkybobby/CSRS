@@ -123,6 +123,27 @@ def run_deterministic(cases: list[dict]) -> list[tuple[str, str | None]]:
                     "message": rate_not_found_message(case["question"]),
                 }
 
+            elif expected_type == "NEEDS_CLARIFICATION":
+                # The CSR named a procedure FAMILY rather than a procedure, so
+                # nothing may be priced yet and estimate_member_cost is never
+                # reached -- so neither is it called here. The result is shaped
+                # exactly as bff/app/main.py shapes it (the ProcedureMatchResult
+                # surfaced as-is with a response_type added), so what is
+                # asserted below is the real payload rather than a convenient
+                # reconstruction of one.
+                match = match_procedure(case["question"])
+                if match.status != "NEEDS_CLARIFICATION":
+                    outcomes.append((
+                        case_id,
+                        f"expected NEEDS_CLARIFICATION, got status={match.status!r} "
+                        f"cpt_code={match.cpt_code!r}",
+                    ))
+                    continue
+                result_dict = {
+                    **match.model_dump(mode="json"),
+                    "response_type": "NEEDS_CLARIFICATION",
+                }
+
             else:
                 # Standard path: resolve_procedure must MATCH the expected
                 # CPT, then estimate_member_cost prices it.
@@ -196,6 +217,21 @@ def _check_case(case: dict, result_dict: dict, outcomes: list[tuple[str, str | N
     for substring in case.get("expected_message_contains", []):
         if substring not in result_dict.get("message", ""):
             outcomes.append((case_id, f"message missing expected substring {substring!r}"))
+            failed = True
+
+    # Asserted as a SET rather than through expected_fields, because what
+    # matters is which procedures the CSR was offered -- not the order a fuzzy
+    # scorer happened to rank equally-scoring candidates in. Pinning that order
+    # would make this fail on a scorer upgrade that changed nothing a CSR would
+    # ever notice.
+    expected_candidates = case.get("expected_candidate_cpt_codes")
+    if expected_candidates is not None:
+        actual = sorted(c.get("cpt_code") for c in result_dict.get("candidates", []))
+        if actual != sorted(expected_candidates):
+            outcomes.append((
+                case_id,
+                f"candidates: expected {sorted(expected_candidates)}, got {actual}",
+            ))
             failed = True
 
     if not failed:
