@@ -10,3 +10,6 @@ ruff==0.16.2
 mypy==2.3.0
 pyyaml==6.0.3
 psycopg2-binary==2.9.12
+# Reads db/seed/source/rate_sheet_2026.xlsx in tests/unit/test_rate_sheet_source.py,
+# the seed-vs-source-sheet diff. Test-only -- no runtime code opens the workbook.
+openpyxl==3.1.5
