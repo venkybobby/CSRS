@@ -312,8 +312,46 @@ def match_procedure(query: str, catalog: list[RateSheetRow] | None = None) -> Pr
         )
 
     if score >= CLARIFY_THRESHOLD:
+        # A named family beats a fuzzy ranking, even here. If the CSR used a
+        # word that several DIFFERENT procedures share, they named a family,
+        # and the family IS the candidate list -- a shared token is real
+        # vocabulary, while a score in this band is often noise. "can we get
+        # an MRI for her" scrapes 63.6 against the alias "mri on her knee"
+        # on the strength of the word "her", and letting that drive the
+        # answer offers MRI Knee first and pads the list with whatever ranks
+        # next (Knee X-Ray, which shares nothing with the question).
+        #
+        # This is the third appearance of one shape: the wrong branch
+        # winning on an accident of score. A tie above MATCH_THRESHOLD used
+        # to resolve silently; dilution below CLARIFY_THRESHOLD used to fall
+        # through to NOT_ON_FILE; and consulting the family check only below
+        # this line meant a query that accidentally cleared it got the worse
+        # answer. Same fix each time -- ask the semantic question before the
+        # numeric one.
+        named_family = _ambiguous_family_candidates(normalized, catalog)
+        if len(named_family) > 1:
+            return ProcedureMatchResult(
+                query=query,
+                status="NEEDS_CLARIFICATION",
+                candidates=named_family,
+                clarifying_question=(
+                    f"'{query}' could be more than one procedure -- which one is this?"
+                ),
+            )
+
+        # Rank everything and cap AFTER deduplicating by CPT, not before.
+        # Capping the raw ranking at MAX_CLARIFY_CANDIDATES first caps
+        # *aliases*, and one procedure owns several: "can we get an MRI for
+        # her" filled all four slots with two codes (mri on her knee, mri of
+        # the brain, head mri, mri knee) and dropped MRI Low Back entirely,
+        # offering the CSR a two-way choice between three real options. The
+        # constant means "at most four procedures to choose between", which
+        # is what _tied_candidates() already implements -- this branch simply
+        # never got the same treatment, and equal scores break by dict
+        # insertion order, so which procedure vanished depended on the row
+        # order in rate_sheet.json.
         top = process.extract(
-            normalized, choices.keys(), scorer=fuzz.token_set_ratio, limit=MAX_CLARIFY_CANDIDATES
+            normalized, choices.keys(), scorer=fuzz.token_set_ratio, limit=len(choices)
         )
         seen_cpt: set[str] = set()
         candidates = []
@@ -323,6 +361,8 @@ def match_procedure(query: str, catalog: list[RateSheetRow] | None = None) -> Pr
                 continue
             seen_cpt.add(r.cpt_code)
             candidates.append(ProcedureCandidate(cpt_code=r.cpt_code, common_name=r.common_name, score=s))
+            if len(candidates) >= MAX_CLARIFY_CANDIDATES:
+                break
         return ProcedureMatchResult(
             query=query,
             status="NEEDS_CLARIFICATION",

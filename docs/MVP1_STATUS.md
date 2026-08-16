@@ -108,6 +108,73 @@ addition to `evals/demo_scripts.yaml` and worth making before production.
 
 ---
 
+## Corrected: the seeded rates did not match your rate sheet
+
+`rate_sheet_2026.xlsx` was named as a source input in the spec, and — exactly
+like the spec itself a week earlier — it was cited everywhere and held
+nowhere. It is now in the repository at `db/seed/source/rate_sheet_2026.xlsx`,
+and diffing the seeded data against it found that **8 of the 11 rates present
+in both had drifted, 4 of your procedures were missing from the system
+entirely, and 3 procedures were seeded that Meridian has never negotiated.**
+
+| | Your sheet | Was seeded |
+|---|---|---|
+| MRI Brain (70551) | $1,450 | $1,400 |
+| Colonoscopy, diagnostic (45378) | $1,800 | $1,200 |
+| Colonoscopy, screening (45380) | $1,650 | $800 |
+| Chest X-Ray (71046) | $120 | $180 |
+| Metabolic panel (80053) | $45 | $85 |
+| EKG (93000) | $95 | $120 |
+| CBC (85025) | $30 | $45 |
+| Office visit (99213) | $165 | $150 |
+| Echocardiogram (93306) | $850 | *missing* |
+| Knee X-Ray (73562) | $140 | *missing* |
+| Annual physical (99385) | $210 | *missing* |
+| Cataract surgery (66984) | $3,900 | *missing* |
+| Joint injection · abdominal ultrasound · moderate office visit | *not on your sheet* | seeded and priceable |
+
+All of this is now corrected and, more importantly, gated: a new test
+(`tests/unit/test_rate_sheet_source.py`) loads your workbook and fails the
+build on any rate that disagrees with it, any procedure on your sheet missing
+from ours, and any procedure of ours that is not on your sheet. That last
+check is the one that matters most for the monthly refresh J. Morrow will be
+issuing from September — a rate-sheet update *is* a reseed, and this is what
+makes it a routine operation rather than a careful one.
+
+**What this did and did not affect.** Every figure ever demonstrated to you
+in a walkthrough was correct, and not by luck: the only rates that were right
+were the ones back-derived from the worked examples in your own spec — the
+$1,150 knee MRI and the $6,200 knee surgery, both of which match your sheet
+exactly. The rates nobody had a worked example for were the rates that were
+wrong. Exactly one screen changes as a result: the MRI Brain quote moves from
+$520 to **$530**. The screening colonoscopy's stored rate was wrong by $850 and
+its screen does not change at all — the preventive path short-circuits to
+"member owes $0" without ever printing a rate. That error was real and entirely
+invisible, which is the more useful half of the point: a wrong rate is not made
+harmless by a screen that happens not to show it.
+
+**Why none of the existing verification caught it.** This is worth stating
+plainly, because it is a real limit of the design and not an oversight. The
+guardrail asks *"did this number come from a tool?"* — and every one of these
+numbers did. The 18 offline scenario cases passed identically before and after
+the correction. A provenance chain that runs model → tool → data can prove the
+data was used faithfully; it cannot prove the data was right. Only a check
+that reads an artifact from outside the system can do that, which is precisely
+what the new test is and why it is the only one of its kind in the suite.
+
+**One question this opens, for Plan Ops.** CPT 99385 is a *preventive* visit,
+but the spec states preventive-at-100% only for CPT 45380, so the system will
+quote the annual physical as a normal deductible-and-coinsurance procedure. If
+Meridian in fact covers it in full, that is a wrong member-facing figure. Plan
+configuration has deliberately not been changed on an assumption — **please
+confirm before this procedure reaches a CSR.**
+
+**One note carried off your sheet.** Its header reads *"imaging rates pending
+Q3 renegotiation."* The MRI figures the demonstrations lead with sit on a line
+Meridian itself flags as unsettled.
+
+---
+
 ## Story 6 — the exclusion vs. no-rate distinction
 
 This was called out as an explicit requirement: *"not a covered benefit"* and

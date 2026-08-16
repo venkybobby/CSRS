@@ -253,7 +253,7 @@
     "procedure": {
       "cpt_code": "45380",
       "common_name": "Colonoscopy, Preventive (Screening)",
-      "negotiated_rate": "800.00"
+      "negotiated_rate": "1650.00"
     },
     "clarification": null,
     "breakdown": null
@@ -409,23 +409,23 @@
     "procedure": {
       "cpt_code": "70551",
       "common_name": "MRI Brain",
-      "negotiated_rate": "1400.00"
+      "negotiated_rate": "1450.00"
     },
     "clarification": null,
     "breakdown": {
-      "negotiated_rate": "1400.00",
+      "negotiated_rate": "1450.00",
       "deductible_individual": "1500.00",
       "deductible_met_ytd": "1200.00",
       "deductible_remaining": "300.00",
       "applied_to_deductible": "300.00",
-      "balance_after_deductible": "1100.00",
+      "balance_after_deductible": "1150.00",
       "coinsurance_pct": "0.20",
-      "coinsurance_amount": "220.00",
-      "member_cost_before_cap": "520.00",
+      "coinsurance_amount": "230.00",
+      "member_cost_before_cap": "530.00",
       "oop_remaining": "2800.00",
       "oop_cap_triggered": false,
       "triggering_threshold": "N/A",
-      "member_cost": "520.00",
+      "member_cost": "530.00",
       "prior_auth_required": true
     }
   }

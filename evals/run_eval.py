@@ -27,7 +27,7 @@ dollar figures: deterministic mode already pins those, and re-checking them
 here would only add model flakiness to a signal that is already exact.
 
 Usage:
-    TEST_DATABASE_URL=postgresql+psycopg2://... python evals/run_eval.py --mode deterministic
+    DATABASE_URL=postgresql+psycopg2://... python evals/run_eval.py --mode deterministic
     AGENT_ENGINE_RESOURCE_NAME=... python evals/run_eval.py --mode live --env dev
 """
 from __future__ import annotations

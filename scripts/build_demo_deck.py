@@ -145,9 +145,15 @@ SLIDES = [
         "the guarantee no offline test can establish.",
         "rows": [
             ("User stories implemented", "8 / 8", "Audited against your requirements document", "ok"),
-            ("Unit tests", "103 passed", "Pure logic, no external services", "ok"),
+            ("Unit tests", "107 passed", "Pure logic, no external services", "ok"),
             ("Integration tests", "17 passed", "Against a real PostgreSQL database", "ok"),
             ("Scenario suite, offline", "18 / 18", "Every figure pinned to your worked examples", "ok"),
+            (
+                "Rates vs. your workbook",
+                "15 / 15",
+                "Every negotiated rate diffed against rate_sheet_2026.xlsx on every build",
+                "ok",
+            ),
             (
                 "Scenario suite, live",
                 "20 / 20",
@@ -160,9 +166,12 @@ SLIDES = [
         ],
         "kicker": "The last row is the honest one, and it is why I am asking for an hour.",
         "say": "Here is where it stands. Eight of eight user stories implemented, and audited "
-        "against your own requirements document rather than against our memory of it. Ninety-one "
-        "unit tests, seventeen integration tests against a real database, sixteen of sixteen "
-        "scenario cases offline with every figure pinned to the worked examples in your spec. "
+        "against your own requirements document rather than against our memory of it. A hundred "
+        "and seven unit tests, seventeen integration tests against a real database, eighteen of "
+        "eighteen scenario cases offline with every figure pinned to the worked examples in your "
+        "spec. The fourth row is new since we last spoke, and it is there because we found we "
+        "needed it: every negotiated rate in the system is now diffed against your own 2026 rate "
+        "sheet on every single build, and the build fails on any disagreement. "
         "Then twenty of twenty against the deployed system answering through a real language "
         "model — that run also checks the order in which it did things, which is the guarantee "
         "no offline test can give you. Four adversarial attempts, all repelled. And then the "
@@ -374,7 +383,7 @@ SLIDES = [
         "tone": "unwatched",
         "eyebrow": "Stated plainly, before you ask",
         "title": "What we are not claiming.",
-        "standfirst": "Seven things, volunteered rather than waited for. None of them are "
+        "standfirst": "Nine things, volunteered rather than waited for. None of them are "
         "surprises to the team, and none of them are hidden in a footnote.",
         "points": [
             "A confident wrong match is still possible. If the caller says knee and means "
@@ -392,6 +401,17 @@ SLIDES = [
             "The prior-authorisation warning is verified by test in both directions, but it is "
             "not covered by the automatic post-deployment check. We found that ourselves and "
             "are telling you rather than fixing it quietly.",
+            "Our seeded rates had drifted from your rate sheet — eight of them, four of your "
+            "procedures missing, three we had invented. Corrected, and it now fails the build. "
+            "The lesson is larger than the fix: our guardrail proves a figure came from the "
+            "system's data, never that the data was right. Only reading your workbook proves "
+            "that. Something now does, on every build. Your sheet's own header also notes that "
+            "imaging rates are pending Q3 renegotiation — the MRI figures we lead with sit on a "
+            "line you yourselves flag as unsettled.",
+            "The annual physical (99385) is priced as an ordinary procedure, because your spec "
+            "states preventive-at-100% only for the screening colonoscopy. If Meridian covers "
+            "it in full, that figure is wrong. We have not guessed at it — Plan Ops needs to "
+            "tell us.",
             "This system supports a compliance position. It does not certify one. A person "
             "signs off, always.",
         ],
@@ -411,9 +431,22 @@ SLIDES = [
         "belongs to the production promotion and nothing is close to the boundary yet. The "
         "prior-authorisation warning is verified by test in both directions but is not covered "
         "by our automatic post-deployment check — we found that ourselves during an audit this "
-        "week, and I am telling you rather than fixing it quietly and saying nothing. And last: "
+        "week, and I am telling you rather than fixing it quietly and saying nothing. The same "
+        "audit found something sharper. Our seeded rates had drifted from your rate sheet: eight "
+        "of them wrong, four of your procedures missing, three in our system that you have never "
+        "negotiated. Every figure we ever showed you was right, and not by luck — the only rates "
+        "that were correct were the ones we had derived from the worked examples in your own "
+        "spec. The rest had never been checked against anything. It is fixed, and the build now "
+        "fails on any disagreement with your workbook. But the reason it happened is the part "
+        "worth your attention: our guardrail asks whether a number came from our data. It cannot "
+        "ask whether our data was right. Nothing inside the system could have caught this, and "
+        "that is now the one test that reads something from outside it. One consequence for you: "
+        "the annual physical is priced as an ordinary procedure, because your spec names "
+        "preventive-at-a-hundred-percent only for the screening colonoscopy. If you cover it in "
+        "full, that number is wrong — I have not guessed, and I need Plan Ops to tell me. And "
+        "last: "
         "this system supports a compliance position. It does not certify one. A person signs "
-        "off, always. If I had left any of those six for you to discover, nothing else in this "
+        "off, always. If I had left any of those nine for you to discover, nothing else in this "
         "deck would be worth much.",
     },
     {

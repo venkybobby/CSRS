@@ -3,105 +3,113 @@
     "cpt_code": "70551",
     "common_name": "MRI Brain",
     "search_aliases": ["mri brain", "brain mri", "mri of the brain", "head mri"],
-    "negotiated_rate": "1400.00",
-    "_source": "Story 4 prior-auth table names this CPT; rate is constructed (not spec-stated) -- no worked cost example uses it."
-  },
-  {
-    "cpt_code": "72148",
-    "common_name": "MRI Low Back",
-    "search_aliases": ["mri low back", "lower back mri", "mri lumbar spine", "back mri"],
-    "negotiated_rate": "1300.00",
-    "_source": "Story 4 prior-auth table names this CPT; rate is constructed (not spec-stated)."
+    "negotiated_rate": "1450.00",
+    "_source": "rate_sheet_2026.xlsx row 4 ('MRI brain without contrast', 'MRI - Brain', 1450). Previously seeded at 1400.00 -- constructed, because the rate was read off the stories document (which names this CPT in Story 4's prior-auth table but states no rate) rather than off the sheet."
   },
   {
     "cpt_code": "73721",
     "common_name": "MRI Knee",
     "search_aliases": ["mri on his knee", "mri on her knee", "knee mri", "mri knee"],
     "negotiated_rate": "1150.00",
-    "_source": "Derived: Demo Script #1 -- deductible remaining $300 fully absorbed, balance $850 => rate = 300 + 850 = $1,150."
+    "_source": "rate_sheet_2026.xlsx row 5 ('MRI lower extremity joint (knee)', 'MRI - Knee', 1150). Independently corroborated: Demo Script #1 back-derives the same figure (deductible remaining $300 fully absorbed + balance $850 = $1,150)."
+  },
+  {
+    "cpt_code": "72148",
+    "common_name": "MRI Low Back",
+    "search_aliases": ["mri low back", "lower back mri", "mri lumbar spine", "back mri"],
+    "negotiated_rate": "1300.00",
+    "_source": "rate_sheet_2026.xlsx row 6 ('MRI lumbar spine', 'MRI - Low Back', 1300)."
+  },
+  {
+    "cpt_code": "45378",
+    "common_name": "Colonoscopy, Diagnostic",
+    "search_aliases": ["diagnostic colonoscopy", "colonoscopy diagnostic"],
+    "negotiated_rate": "1800.00",
+    "_source": "rate_sheet_2026.xlsx row 7 ('Colonoscopy diagnostic', 1800). Previously seeded at 1200.00 -- constructed."
+  },
+  {
+    "cpt_code": "45380",
+    "common_name": "Colonoscopy, Preventive (Screening)",
+    "search_aliases": ["preventive colonoscopy", "screening colonoscopy", "colonoscopy screening"],
+    "negotiated_rate": "1650.00",
+    "_source": "rate_sheet_2026.xlsx row 8 ('Colonoscopy screening/preventive', 1650). Previously seeded at 800.00 -- constructed. Member cost is $0 under the Story 7 preventive short-circuit regardless of this value, and the preventive pane does not render a rate line at all -- so an $850 error here was completely invisible on screen. Nothing in the UI would ever have surfaced it; only the diff against the workbook does. Worth remembering before concluding that a wrong seeded rate is harmless because the member's own figure is right: it is stored, audited, and would surface the moment this code is quoted down any non-preventive path."
+  },
+  {
+    "cpt_code": "93000",
+    "common_name": "Electrocardiogram (EKG)",
+    "search_aliases": ["ekg", "ecg", "electrocardiogram", "heart trace"],
+    "negotiated_rate": "95.00",
+    "_source": "rate_sheet_2026.xlsx row 9 ('Electrocardiogram (EKG/ECG)', 95). Previously seeded at 120.00 -- constructed."
+  },
+  {
+    "cpt_code": "93306",
+    "common_name": "Echocardiogram, Complete",
+    "search_aliases": ["echocardiogram", "echo", "heart ultrasound", "echo of the heart"],
+    "negotiated_rate": "850.00",
+    "_source": "rate_sheet_2026.xlsx row 10 ('Echocardiogram complete', 'Echo (Heart Ultrasound)', 850). Absent from the seed until the seed-vs-sheet audit: the system answered 'no rate on file' for a procedure Meridian has a negotiated rate for. Aliases deliberately omit 'cardiac' -- see the _note row at the end of this file."
+  },
+  {
+    "cpt_code": "71046",
+    "common_name": "Chest X-Ray, 2 Views",
+    "search_aliases": ["chest xray", "chest x-ray", "chest x ray"],
+    "negotiated_rate": "120.00",
+    "_source": "rate_sheet_2026.xlsx row 11 ('Chest X-ray 2 views', 120). Previously seeded at 180.00 -- constructed."
+  },
+  {
+    "cpt_code": "73562",
+    "common_name": "Knee X-Ray, 3 Views",
+    "search_aliases": ["knee xray", "knee x-ray", "knee x ray", "xray of the knee"],
+    "negotiated_rate": "140.00",
+    "_source": "rate_sheet_2026.xlsx row 12 ('Knee X-ray 3 views', 140). Absent from the seed until the seed-vs-sheet audit."
+  },
+  {
+    "cpt_code": "80053",
+    "common_name": "Comprehensive Metabolic Panel",
+    "search_aliases": ["metabolic panel", "blood chemistry panel", "cmp"],
+    "negotiated_rate": "45.00",
+    "_source": "rate_sheet_2026.xlsx row 13 ('Comprehensive metabolic panel', 45). Previously seeded at 85.00 -- constructed."
+  },
+  {
+    "cpt_code": "85025",
+    "common_name": "Complete Blood Count (CBC)",
+    "search_aliases": ["cbc", "complete blood count", "blood count"],
+    "negotiated_rate": "30.00",
+    "_source": "rate_sheet_2026.xlsx row 14 ('Complete blood count (CBC)', 30). Previously seeded at 45.00 -- constructed."
+  },
+  {
+    "cpt_code": "99213",
+    "common_name": "Office Visit, Established Patient, Low Complexity",
+    "search_aliases": ["office visit", "follow up visit", "checkup"],
+    "negotiated_rate": "165.00",
+    "_source": "rate_sheet_2026.xlsx row 15 ('Office visit established Level 3', 165). Previously seeded at 150.00 -- constructed."
+  },
+  {
+    "cpt_code": "99385",
+    "common_name": "Annual Physical (Preventive Visit, New Patient)",
+    "search_aliases": ["annual physical", "yearly physical", "annual wellness visit", "physical exam"],
+    "negotiated_rate": "210.00",
+    "_source": "rate_sheet_2026.xlsx row 16 ('Preventive visit new patient 18-39', 'Annual Physical', 210). Absent from the seed until the seed-vs-sheet audit. OPEN QUESTION for Plan Ops (Marcus) / Dana: this is a PREVENTIVE service, but the source spec states preventive-at-100% only for CPT 45380, so plans.json's preventive_covered_100pct_codes is left unchanged and this row will be quoted as a normal deductible/coinsurance procedure. If Meridian in fact covers it at 100%, that is a wrong member-facing figure -- confirm before this reaches a CSR."
   },
   {
     "cpt_code": "29881",
     "common_name": "Knee Arthroscopy/Surgery",
     "search_aliases": ["knee surgery", "knee arthroscopy", "arthroscopic knee surgery"],
     "negotiated_rate": "6200.00",
-    "_source": "Story 3 / Demo Script #2 & #3: 'rate $6,200' stated explicitly."
+    "_source": "rate_sheet_2026.xlsx row 17 ('Knee arthroscopy w/ meniscectomy', 6200). Independently corroborated: Story 3 / Demo Script #2 & #3 state 'rate $6,200' explicitly."
   },
   {
-    "cpt_code": "45380",
-    "common_name": "Colonoscopy, Preventive (Screening)",
-    "search_aliases": ["preventive colonoscopy", "screening colonoscopy", "colonoscopy screening"],
-    "negotiated_rate": "800.00",
-    "_source": "CPT stated explicitly (Story 2/7). Rate is constructed -- member cost is always $0 under the preventive short-circuit regardless of this value; it exists only because a rate_sheet row is required for resolve_procedure to MATCH."
-  },
-  {
-    "cpt_code": "45378",
-    "common_name": "Colonoscopy, Diagnostic",
-    "search_aliases": ["diagnostic colonoscopy", "colonoscopy diagnostic"],
-    "negotiated_rate": "1200.00",
-    "_source": "CPT stated explicitly (Story 2). Rate is constructed (not spec-stated)."
+    "cpt_code": "66984",
+    "common_name": "Cataract Surgery with IOL",
+    "search_aliases": ["cataract surgery", "cataract removal", "cataract operation"],
+    "negotiated_rate": "3900.00",
+    "_source": "rate_sheet_2026.xlsx row 18 ('Cataract surgery w/ IOL', 3900). Absent from the seed until the seed-vs-sheet audit. NOTE the missing bare 'cataract' alias: it scored 66.7 against the query 'Cardiac CT' -- 'cardiacct' and 'cataract' are near-anagrams -- which cleared CLARIFY_THRESHOLD and turned Story 8 / Demo Script #5's honest miss into a clarifying question. Nothing is lost by dropping it, because a bare 'cataract' query is a token subset of 'cataract surgery' and still scores 100. Lexical, not semantic: the matcher cannot tell an eye from a heart, so a new alias can collide with a demo-critical honest-miss string by pure spelling accident. tests/unit/test_rate_matcher.py builds its catalog from this file, so the suite catches this class on every reseed."
   },
   {
     "cpt_code": "S8092",
     "common_name": "Acupuncture",
     "search_aliases": ["acupuncture", "acupuncture treatment"],
     "negotiated_rate": null,
-    "_source": "Story 6. negotiated_rate intentionally NULL -- see schema comment in 0001_init_schema.sql: Bronze excludes it (exclusion check fires before any rate is needed), Silver/Gold are not excluded and correctly fall through to a real 'rate not on file' outcome."
-  },
-  {
-    "cpt_code": "99213",
-    "common_name": "Office Visit, Established Patient, Low Complexity",
-    "search_aliases": ["office visit", "follow up visit", "checkup"],
-    "negotiated_rate": "150.00",
-    "_source": "Constructed to complete the 15-procedure sheet; not individually specified in the source spec."
-  },
-  {
-    "cpt_code": "99214",
-    "common_name": "Office Visit, Established Patient, Moderate Complexity",
-    "search_aliases": ["office visit moderate", "extended office visit"],
-    "negotiated_rate": "220.00",
-    "_source": "Constructed to complete the 15-procedure sheet; not individually specified in the source spec."
-  },
-  {
-    "cpt_code": "80053",
-    "common_name": "Comprehensive Metabolic Panel",
-    "search_aliases": ["metabolic panel", "blood chemistry panel", "cmp"],
-    "negotiated_rate": "85.00",
-    "_source": "Constructed to complete the 15-procedure sheet; not individually specified in the source spec."
-  },
-  {
-    "cpt_code": "85025",
-    "common_name": "Complete Blood Count (CBC)",
-    "search_aliases": ["cbc", "complete blood count", "blood count"],
-    "negotiated_rate": "45.00",
-    "_source": "Constructed to complete the 15-procedure sheet; not individually specified in the source spec."
-  },
-  {
-    "cpt_code": "71046",
-    "common_name": "Chest X-Ray, 2 Views",
-    "search_aliases": ["chest xray", "chest x-ray", "chest x ray"],
-    "negotiated_rate": "180.00",
-    "_source": "Constructed to complete the 15-procedure sheet; not individually specified in the source spec."
-  },
-  {
-    "cpt_code": "93000",
-    "common_name": "Electrocardiogram (EKG)",
-    "search_aliases": ["ekg", "ecg", "electrocardiogram", "heart trace"],
-    "negotiated_rate": "120.00",
-    "_source": "Constructed to complete the 15-procedure sheet; not individually specified in the source spec."
-  },
-  {
-    "cpt_code": "76700",
-    "common_name": "Abdominal Ultrasound",
-    "search_aliases": ["abdominal ultrasound", "belly ultrasound", "abdomen ultrasound"],
-    "negotiated_rate": "450.00",
-    "_source": "Constructed to complete the 15-procedure sheet; not individually specified in the source spec."
-  },
-  {
-    "cpt_code": "20610",
-    "common_name": "Joint Injection, Major Joint",
-    "search_aliases": ["joint injection", "knee injection", "shoulder injection", "cortisone shot"],
-    "negotiated_rate": "275.00",
-    "_source": "Constructed to complete the 15-procedure sheet; not individually specified in the source spec."
+    "_source": "Story 6. NOT on rate_sheet_2026.xlsx, and deliberately so -- this is the one off-sheet row, allowlisted in tests/unit/test_rate_sheet_source.py. negotiated_rate is NULL, which is the honest encoding of 'Meridian has not negotiated a rate for this': Bronze excludes it (the exclusion check fires before any rate is needed), Silver/Gold are not excluded and correctly fall through to a real 'rate not on file' outcome. See the schema comment in 0001_init_schema.sql.",
+    "_note": "Why this file exists in this shape, and the two rules that keep it honest. (1) Every negotiated_rate must equal the corresponding cell in db/seed/source/rate_sheet_2026.xlsx -- enforced by tests/unit/test_rate_sheet_source.py, which fails on any drift, any sheet procedure missing from the seed, and any seeded procedure that is not on the sheet. Before that test existed, 8 of the 11 shared rates had drifted, 4 sheet procedures were missing, and 3 procedures were seeded that Meridian never negotiated -- the numeric-provenance guardrail passed all of them, because it proves a figure came from a tool and cannot prove the tool's table was real. (2) search_aliases are OURS, not the sheet's: they are the app's search vocabulary and are not diffed against the xlsx. One deliberate omission -- no alias anywhere contains the word 'cardiac', because Story 8 / Demo Script #5 requires 'Cardiac CT' to be a clean NOT_ON_FILE, and giving 93306 a 'cardiac ultrasound' alias would score it into the clarify band and turn an honest miss into a question. A CSR typing 'cardiac ultrasound' therefore gets an honest miss rather than a wrong match, which is the safe direction to fail."
   }
 ]
