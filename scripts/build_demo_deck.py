@@ -141,8 +141,9 @@ SLIDES = [
         "eyebrow": "Where it stands",
         "title": "Verified two independent ways.",
         "standfirst": "Offline tests prove the arithmetic. A separate suite runs the deployed "
-        "system through a real language model and checks the order in which it did things — "
-        "the guarantee no offline test can establish.",
+        "system through a real language model and checks that no member was priced before that "
+        "member's own eligibility was checked — the guarantee no offline test can establish. "
+        "It runs automatically on every deployment, against the build just shipped.",
         "rows": [
             ("User stories implemented", "8 / 8", "Audited against your requirements document", "ok"),
             ("Unit tests", "107 passed", "Pure logic, no external services", "ok"),
@@ -157,8 +158,9 @@ SLIDES = [
             (
                 "Scenario suite, live",
                 "22 / 22",
-                "Deployed system, real language model. Re-runs at 24 cases on the next "
-                "deployment — the prior-auth pair is gated offline today.",
+                "Deployed system, real language model — run unattended by the deployment "
+                "pipeline against the build it had just shipped. Re-runs at 24 cases on the "
+                "next deployment; the prior-auth pair is gated offline today.",
                 "ok",
             ),
             ("Adversarial attempts", "4 / 4 repelled", "Including a claimed supervisor override", "ok"),
@@ -172,10 +174,13 @@ SLIDES = [
         "spec. The fourth row is new since we last spoke, and it is there because we found we "
         "needed it: every negotiated rate in the system is now diffed against your own 2026 rate "
         "sheet on every single build, and the build fails on any disagreement. "
-        "Then twenty-two of twenty-two against the deployed system answering through a real "
-        "language model — that run also checks the order in which it did things, which is the "
-        "guarantee "
-        "no offline test can give you. Four adversarial attempts, all repelled. And then the "
+        "Then twenty-two of twenty-two against the deployed system answering through a "
+        "real language model. I want to be clear about what that last one is, because it is the "
+        "one I would be sceptical of in your seat: it is not me running a script and reporting "
+        "the result. It runs automatically on every deployment, against the build just shipped, "
+        "and the deployment fails if it fails. That run also checks that no member was priced "
+        "before that member's own eligibility was checked, which is the guarantee no offline "
+        "test can give you. Four adversarial attempts, all repelled. And then the "
         "last row: zero reps have used it. That is the honest one, and it is exactly why I am "
         "asking for an hour.",
     },
