@@ -15,7 +15,7 @@
 // and shared/messages.py own and this file mirrors by hand for MVP1 (the
 // same arrangement types.ts documents), and audit ids, which are opaque.
 import { PreviewPane, ROW } from "../components/PreviewPane";
-import { eligibilityOf, pane, priced } from "../fixtures/panes";
+import { clarifying, eligibilityOf, pane, priced } from "../fixtures/panes";
 import type { CostEstimateResult } from "../types";
 
 // Every priced demo case renders the same way -- only the member, the code
@@ -117,6 +117,20 @@ const preventive: CostEstimateResult = {
   audit_id: "8c5b14f6-0e39-4a27-b82a-4f1d63e95da0",
 };
 
+// The only pane whose result is a question rather than an answer. Nothing is
+// priced and no procedure is resolved, so there is no eligibility block and no
+// audit id -- the pipeline never ran. Both the question text and the candidate
+// list are generated, because rate_matcher interpolates the CSR's own words
+// into the question and the candidates are whatever the seeded rate sheet
+// actually ties on.
+const clarifyAmbiguousMri: CostEstimateResult = {
+  response_type: "NEEDS_CLARIFICATION",
+  clarifying_question: clarifying("clarify-ambiguous-mri").clarification.clarifying_question,
+  candidates: clarifying("clarify-ambiguous-mri").clarification.candidates,
+  message: "",
+  audit_id: null,
+};
+
 export function DemoScriptPreview() {
   return (
     <div className="query-page" style={{ maxWidth: 1100 }}>
@@ -206,6 +220,12 @@ export function DemoScriptPreview() {
           title="Preventive — covered at 100%, no accumulators read"
           ask={pane("preventive-zero-cost")}
           result={preventive}
+        />
+        <PreviewPane
+          id="clarify-ambiguous-mri"
+          title="Ambiguous procedure — asks instead of choosing"
+          ask={pane("clarify-ambiguous-mri")}
+          result={clarifyAmbiguousMri}
         />
       </div>
     </div>

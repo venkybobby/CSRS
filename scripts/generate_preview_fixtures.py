@@ -43,6 +43,7 @@ from csr_agent.calculator.types import (  # noqa: E402
     PlanTerms,
     RateInfo,
 )
+from csr_agent.data.rate_matcher import RateSheetRow, match_procedure  # noqa: E402
 
 SEED_DIR = REPO_ROOT / "db" / "seed"
 DEMO_SCRIPTS = REPO_ROOT / "evals" / "demo_scripts.yaml"
@@ -72,6 +73,12 @@ PANES_FROM_EVAL_CASES = {
     "dated-no": "dos_dated_no_after_coverage_ends",
     "plan-year-boundary": "dos_plan_year_boundary_is_a_refusal",
     "past-date": "dos_in_past_is_a_claims_question",
+    # The only pane whose result is a QUESTION rather than an answer. A bare
+    # procedure family ties across three codes, so nothing is priced until the
+    # CSR says which one. This is the outcome the client's steering committee
+    # asked about -- "the model picks the procedure, what if it picks wrong?"
+    # -- and the one screen docs/screenshots/ carried no image of.
+    "clarify-ambiguous-mri": "bare_procedure_family_asks_which_one",
 }
 
 # The one pane with no eval case behind it. Story 4's prior-auth banner is
@@ -180,6 +187,52 @@ def build_panes() -> dict[str, Any]:
             for field, value in vars(breakdown).items()
         }
 
+    def clarification_for(question: str) -> dict[str, Any]:
+        """The question the CSR is asked and the candidates they are offered.
+
+        Built against a catalog assembled from db/seed rather than the
+        database, matching how tests/unit/test_rate_matcher.py does it: this
+        script must stay runnable with no Postgres, like every other part of
+        the fixture pipeline.
+
+        The clarifying question is emitted rather than mirrored by hand in the
+        TSX like the other response text, because unlike those it is not fixed
+        prose -- rate_matcher interpolates the CSR's own words into it, and
+        which of its two phrasings fires depends on whether the query tied
+        above the match threshold or fell below it. Retyping that is how the
+        pane would end up showing a sentence the engine never produced.
+        """
+        catalog = [
+            RateSheetRow(
+                cpt_code=row["cpt_code"],
+                common_name=row["common_name"],
+                search_aliases=tuple(row["search_aliases"]),
+                negotiated_rate=(
+                    Decimal(row["negotiated_rate"])
+                    if row["negotiated_rate"] is not None
+                    else None
+                ),
+            )
+            for row in _load("rate_sheet.json")
+        ]
+        result = match_procedure(question, catalog=catalog)
+        if result.status != "NEEDS_CLARIFICATION":
+            raise SystemExit(
+                f"pane question {question!r} was expected to need clarification but the "
+                f"matcher returned {result.status!r} -- the pane and the case disagree"
+            )
+        return {
+            "clarifying_question": result.clarifying_question,
+            # score is emitted although nothing renders it, because the API
+            # type carries it and the alternative is typing a number into the
+            # TSX that the engine never produced. If a scorer change moves
+            # these, test_preview_fixtures.py should say so.
+            "candidates": [
+                {"cpt_code": c.cpt_code, "common_name": c.common_name, "score": c.score}
+                for c in result.candidates
+            ],
+        }
+
     def build(
         *,
         case_id: str | None,
@@ -201,6 +254,15 @@ def build_panes() -> dict[str, Any]:
             # never on the rate sheet, so the pipeline stops before there is
             # a procedure to describe.
             "procedure": procedure_context(cpt_code) if cpt_code else None,
+            # Only NEEDS_CLARIFICATION carries this, and it is produced by
+            # running the real matcher against the real seeded rate sheet
+            # rather than listed here. Hand-writing the candidate set would
+            # let the pane keep showing three MRIs after someone added a
+            # fourth to the sheet -- the precise class of drift this whole
+            # file exists to prevent.
+            "clarification": (
+                clarification_for(question) if response_type == "NEEDS_CLARIFICATION" else None
+            ),
             # Only STANDARD_COST reaches the calculator. Every other outcome
             # is a refusal or a flat $0, so there is no arithmetic that could
             # drift -- and asking for one would mean pricing S8092, which has

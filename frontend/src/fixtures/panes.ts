@@ -29,6 +29,23 @@ export interface PaneProcedure {
   negotiated_rate: string | null;
 }
 
+export interface PaneCandidate {
+  cpt_code: string;
+  common_name: string;
+  // Carried because the API type does, though nothing renders it.
+  score: number;
+}
+
+// Present only on a NEEDS_CLARIFICATION pane. The question text is generated
+// rather than mirrored by hand like the other response prose: rate_matcher
+// interpolates the CSR's own words into it, and which of its two phrasings
+// fires depends on whether the query tied above the match threshold or fell
+// below it entirely.
+export interface PaneClarification {
+  clarifying_question: string;
+  candidates: PaneCandidate[];
+}
+
 export interface PreviewPaneData {
   // null for a pane no eval case covers; rendered as an explicit
   // "no eval case" stamp rather than an empty slot.
@@ -43,6 +60,9 @@ export interface PreviewPaneData {
   // Only STANDARD_COST reaches the calculator; every other outcome is a
   // refusal or a flat $0.
   breakdown: CostBreakdown | null;
+  // Null on every pane whose result is an answer. Non-null only where the
+  // result is a question back to the CSR.
+  clarification: PaneClarification | null;
 }
 
 const panes = raw as Record<string, PreviewPaneData>;
@@ -70,6 +90,19 @@ export function priced(
     throw new Error(`pane "${id}" has no priced breakdown; it is a refusal or $0 case`);
   }
   return { ...found, breakdown: found.breakdown, procedure: found.procedure };
+}
+
+// Same, for the one pane whose result is a question rather than an answer.
+export function clarifying(
+  id: string,
+): PreviewPaneData & { clarification: PaneClarification } {
+  const found = pane(id);
+  if (!found.clarification) {
+    throw new Error(
+      `pane "${id}" has no clarification; it resolved to a procedure instead of asking`,
+    );
+  }
+  return { ...found, clarification: found.clarification };
 }
 
 // The eligibility block every result variant carries, built from seed rather
