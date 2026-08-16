@@ -199,7 +199,7 @@ Being direct about this rather than claiming untested code works:
   meeting rather than a demo: `ask → stakes → the one architectural decision → evidence →
   demonstrations → loops closed → what we do not claim → decisions → what the hour buys`. Three
   slides are refusals, the scoreboard's last row is the number of CSRs who have used it (zero),
-  and the "what we are not claiming" slide volunteers six gaps rather than waiting to be asked.
+  and the "what we are not claiming" slide volunteers nine gaps rather than waiting to be asked.
   <kbd>N</kbd> toggles speaker notes (hidden by default so they stay out of a screen recording),
   <kbd>S</kbd> puts the whole narration on one page for a second monitor, <kbd>A</kbd> opens an
   objection appendix. Generated for the same reason the screenshots and fixtures are — so it
@@ -210,6 +210,14 @@ Being direct about this rather than claiming untested code works:
   same system, same week — but a different posture: the deck is *presented* and opens with three
   asks, while this is *read alone and forwarded onward*, so it leads with what was decided and
   holds each screenshot inline beside the claim it supports. Regenerate after the screenshots.
+- **Demo video**: [docs/demo/VIDEO_PLAN.md](docs/demo/VIDEO_PLAN.md) is the summary and context
+  for recording it with Playwright — current verified state, the shot list, the recording design
+  (video is written on `context.close()`, `.webm` with a GUID name, no audio), and the constraint
+  that costs a session if found late: Reasoning Engine quota is shared with CI's post-deploy
+  gate, so a recording started while a deploy is in flight fails one of them. Recorded by
+  `scripts/record_demo_video.py`; `--target preview` needs only a vite dev server, `--target
+  live` needs the BFF pointed at a deployed agent and is the only one that can show the
+  clarification exchange as an exchange.
 
   Pairing the ask with the answer is what makes these images checkable rather than decorative,
   and it immediately caught a fixture bug: the dated-yes pane claimed M1010 owed $470 with
