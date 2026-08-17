@@ -19,9 +19,9 @@ also failing a test.
 | Artefact | Audience | Posture | State |
 |---|---|---|---|
 | [`../MVP1_STATUS.md`](../MVP1_STATUS.md) | Dana Whitfield | Read, referenced later | Current |
-| [`steering-cut.html`](steering-cut.html) | Steering committee | **Presented** in a room | Current, 15 slides |
-| [`client-summary.html`](client-summary.html) | Forwarded onward | **Read alone** | Current, 8 screens |
-| `csrsupport-preview.webm` | Committee preview | Watched, ~57s, silent | Current, **not committed** |
+| [`steering-cut.html`](steering-cut.html) | Steering committee | **Presented** in a room | Current, 16 slides |
+| [`client-summary.html`](client-summary.html) | Forwarded onward | **Read alone** | Current, 9 screens |
+| `csrsupport-preview.webm` | Committee preview | Watched, ~108s, silent | Current, **not committed** |
 | [`../CSR_WALKTHROUGH.md`](../CSR_WALKTHROUGH.md) | Carmen · Tyler · Marcus | Run sheet for the session | Current, 7 scenarios + 6b |
 
 The deck and the summary deliberately share a palette — same people, same
@@ -68,30 +68,32 @@ or `client-summary.html`. Edit the generator; the deck's narration lives in
 
 ---
 
-## The capstone, and what is actually blocking it
+## The capstone — what changed, and what still needs a person
 
-The ten-minute narrated walkthrough is **not** in the table above, because it
-does not exist yet. It needs two things, and only one of them is engineering:
+The plan was a ten-minute narrated walkthrough recorded live against the
+deployed agent. **That is deferred, and the fixture route now covers most of
+what it was for.**
 
-1. **The footage** — `record_demo_video.py --target live`, which types real
-   questions into the real form against the deployed agent. See
-   [`VIDEO_PLAN.md`](VIDEO_PLAN.md) §4 for the stack it needs and §5 for the
-   shot list. This consumes Reasoning Engine quota from the same per-minute,
-   per-region pool as CI's post-deploy gate, so check for in-flight builds
-   first:
+Two things moved:
 
-   ```bash
-   gcloud builds list --ongoing --region=us-central1 --project=csrs-504922
-   ```
+- **The exchange is no longer live-only.** `VIDEO_PLAN.md` §3 recorded that a
+  fixture could show the clarifying question but not the turn-taking, so only
+  a live recording could demonstrate it. Turn 2 now exists as a fixture
+  (`clarify-answered-knee`), resolved by the real `resolve_clarification`
+  against the codes turn 1 offered. The one thing that made a live recording
+  necessary is deterministic and free.
+- **The dev agent is unreachable anyway.** Vertex AI on `csrs-504922` returns
+  `Lightning dunning decision is deny` project-wide. See
+  [`../architecture/cost-controls.md`](../architecture/cost-controls.md).
 
-2. **The narration** — a person speaking. Playwright records the viewport and
-   **no audio at all**, so this cannot be automated and no amount of tooling
-   changes that. The script is already written and does not need drafting:
-   press <kbd>S</kbd> in `steering-cut.html` to read the whole narration as
-   one page.
+What a live recording would still add is honest latency and a real model in
+the loop. That is worth having eventually; it is not worth a bill today, and
+the same evidence exists in the post-deploy eval runs with build ids attached.
 
-The silent preview scroll is a good asset and a poor substitute. It shows
-screens; the capstone shows the system answering.
+**The narration needs a person either way.** Playwright records the viewport
+and no audio at all — no tooling changes that. The script is already written:
+press <kbd>S</kbd> in `steering-cut.html` for the whole narration on one page,
+including Demonstration 04, which walks the exchange.
 
 ---
 
@@ -100,7 +102,7 @@ screens; the capstone shows the system answering.
 Worth knowing before sending any of them, because they are deliberately
 specific and a reviewer may check:
 
-- 8/8 user stories · 107 unit · 17 integration · **20/20 offline** ·
+- 8/8 user stories · 109 unit · 17 integration · **20/20 offline** ·
   **22/22 live** · 15/15 rates diffed against Meridian's workbook · 4/4
   adversarial repelled · **0 CSRs have used it**
 - The live number is observed, not forecast — build `4439a4d5`, engine

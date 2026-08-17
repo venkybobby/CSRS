@@ -146,7 +146,7 @@ SLIDES = [
         "It runs automatically on every deployment, against the build just shipped.",
         "rows": [
             ("User stories implemented", "8 / 8", "Audited against your requirements document", "ok"),
-            ("Unit tests", "107 passed", "Pure logic, no external services", "ok"),
+            ("Unit tests", "109 passed", "Pure logic, no external services", "ok"),
             ("Integration tests", "17 passed", "Against a real PostgreSQL database", "ok"),
             ("Scenario suite, offline", "20 / 20", "Every figure pinned to your worked examples", "ok"),
             (
@@ -169,7 +169,7 @@ SLIDES = [
         "kicker": "The last row is the honest one, and it is why I am asking for an hour.",
         "say": "Here is where it stands. Eight of eight user stories implemented, and audited "
         "against your own requirements document rather than against our memory of it. A hundred "
-        "and seven unit tests, seventeen integration tests against a real database, twenty of "
+        "and nine unit tests, seventeen integration tests against a real database, twenty of "
         "twenty scenario cases offline with every figure pinned to the worked examples in your "
         "spec. The fourth row is new since we last spoke, and it is there because we found we "
         "needed it: every negotiated rate in the system is now diffed against your own 2026 rate "

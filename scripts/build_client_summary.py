@@ -33,7 +33,7 @@ OUTPUT = REPO_ROOT / "docs" / "demo" / "client-summary.html"
 
 SCOREBOARD = [
     ("User stories implemented", "8 / 8", "Audited against your requirements document"),
-    ("Unit tests", "107 passed", "Pure logic, no external services"),
+    ("Unit tests", "109 passed", "Pure logic, no external services"),
     ("Integration tests", "17 passed", "Against a real PostgreSQL database"),
     ("Scenario suite, offline", "20 / 20", "Every figure pinned to your worked examples"),
     (

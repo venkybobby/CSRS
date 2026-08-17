@@ -14,10 +14,23 @@ a recording session instead of before one.
 
 ## 1. Where the system actually stands
 
-Verified 2026-08-16, against the deployed dev agent the BFF serves
-(`reasoningEngines/2985492378028081152`, project `csrs-504922`, `us-central1`).
-**Every deploy mints a new engine and repoints the BFF, so confirm this
-resource name before recording rather than copying it from here.**
+Verified 2026-08-16. **Do not copy an engine resource name out of this file.**
+Every deploy mints a new one and repoints the BFF, so any name written here is
+stale by the next merge — this paragraph named
+`reasoningEngines/2985492378028081152` for about an hour before a deploy
+replaced it with `6038932925385277440`. Read the live value instead:
+
+```bash
+gcloud run services describe csrsupport-bff-dev --region=us-central1 \
+  --project=csrs-504922 --format=json \
+  | python -c "import sys,json;[print(e.get('value')) for c in json.load(sys.stdin)['spec']['template']['spec']['containers'] for e in c.get('env',[]) if e['name']=='AGENT_ENGINE_RESOURCE_NAME']"
+```
+
+**As of this revision the dev agent is unreachable regardless.** Vertex AI on
+`csrs-504922` returns `Lightning dunning decision is deny` project-wide — even
+a read on an existing engine 403s — so target B cannot be recorded at all
+until that is cleared. See [`../architecture/cost-controls.md`](../architecture/cost-controls.md).
+Target A is unaffected: it never touches the cloud.
 
 | Check | Result |
 |---|---|
