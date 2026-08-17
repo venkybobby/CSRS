@@ -43,7 +43,11 @@ from csr_agent.calculator.types import (  # noqa: E402
     PlanTerms,
     RateInfo,
 )
-from csr_agent.data.rate_matcher import RateSheetRow, match_procedure  # noqa: E402
+from csr_agent.data.rate_matcher import (  # noqa: E402
+    RateSheetRow,
+    match_procedure,
+    resolve_clarification,
+)
 
 SEED_DIR = REPO_ROOT / "db" / "seed"
 DEMO_SCRIPTS = REPO_ROOT / "evals" / "demo_scripts.yaml"
@@ -110,6 +114,36 @@ STANDALONE_PANES = {
         "cpt_code": "70551",
         "date_of_service": "2026-08-20",
         "asked_on": "2026-08-13",
+    },
+}
+
+
+# Turn 2 of the clarification exchange.
+#
+# VIDEO_PLAN.md §5 calls shots 3 and 4 "the point of the video", and §3
+# recorded that a fixture can show the question but not the exchange, so only
+# a live recording against the deployed agent could show turn-taking. That was
+# true of ONE pane. It is not true of two. With turn 2 here, the exchange is
+# demonstrable with no agent, no deployed environment and no Reasoning Engine
+# quota -- which is what makes the client walkthrough reproducible for free.
+#
+# The resolved CPT is deliberately NOT written here. It comes from
+# resolve_clarification(), the real turn-2 API, restricted to the codes turn 1
+# actually offered -- so this pane cannot claim an outcome the engine would
+# not produce. If "knee" ever stops separating MRI Knee from MRI Brain and MRI
+# Low Back by the required margin, the build fails instead of shipping a pane
+# that says it resolved.
+#
+# case_id is None on purpose. There is no eval case for a two-turn exchange
+# (demo_scripts.yaml cases are single-question), so this pane renders the
+# honest "no eval case" stamp. It is gated by
+# tests/unit/test_rate_matcher.py::test_clarification_answer_resolves_to_knee
+# rather than by the post-deploy suite, and the stamp should keep saying so
+# until that is no longer true.
+CLARIFICATION_ANSWER_PANES = {
+    "clarify-answered-knee": {
+        "answers": "clarify-ambiguous-mri",
+        "answer": "knee",
     },
 }
 
@@ -199,13 +233,25 @@ def build_panes() -> dict[str, Any]:
             for field, value in vars(breakdown).items()
         }
 
+    # Assembled from db/seed rather than the database, matching how
+    # tests/unit/test_rate_matcher.py does it: this script must stay runnable
+    # with no Postgres, like every other part of the fixture pipeline. Built
+    # once at this level because BOTH turns of the clarification exchange
+    # resolve against it, and two independently-built catalogs could disagree.
+    catalog = [
+        RateSheetRow(
+            cpt_code=row["cpt_code"],
+            common_name=row["common_name"],
+            search_aliases=tuple(row["search_aliases"]),
+            negotiated_rate=(
+                Decimal(row["negotiated_rate"]) if row["negotiated_rate"] is not None else None
+            ),
+        )
+        for row in _load("rate_sheet.json")
+    ]
+
     def clarification_for(question: str) -> dict[str, Any]:
         """The question the CSR is asked and the candidates they are offered.
-
-        Built against a catalog assembled from db/seed rather than the
-        database, matching how tests/unit/test_rate_matcher.py does it: this
-        script must stay runnable with no Postgres, like every other part of
-        the fixture pipeline.
 
         The clarifying question is emitted rather than mirrored by hand in the
         TSX like the other response text, because unlike those it is not fixed
@@ -214,19 +260,6 @@ def build_panes() -> dict[str, Any]:
         above the match threshold or fell below it. Retyping that is how the
         pane would end up showing a sentence the engine never produced.
         """
-        catalog = [
-            RateSheetRow(
-                cpt_code=row["cpt_code"],
-                common_name=row["common_name"],
-                search_aliases=tuple(row["search_aliases"]),
-                negotiated_rate=(
-                    Decimal(row["negotiated_rate"])
-                    if row["negotiated_rate"] is not None
-                    else None
-                ),
-            )
-            for row in _load("rate_sheet.json")
-        ]
         result = match_procedure(question, catalog=catalog)
         if result.status != "NEEDS_CLARIFICATION":
             raise SystemExit(
@@ -319,6 +352,40 @@ def build_panes() -> dict[str, Any]:
             response_type="STANDARD_COST",
             date_of_service=spec["date_of_service"],
             asked_on=spec["asked_on"],
+        )
+
+    # Built last: each of these reads the turn-1 pane it answers, so the
+    # candidate list it resolves against is the one actually rendered on
+    # screen rather than a second, independently-derived copy that could
+    # disagree with it.
+    for pane_id, spec in CLARIFICATION_ANSWER_PANES.items():
+        turn_one = panes[spec["answers"]]
+        asked = turn_one["clarification"]
+        if asked is None:
+            raise SystemExit(
+                f"pane {pane_id!r} answers {spec['answers']!r}, but that pane carries no "
+                "clarifying question -- it is not a turn 1"
+            )
+
+        offered = [candidate["cpt_code"] for candidate in asked["candidates"]]
+        resolved = resolve_clarification(
+            spec["answer"], offered, asked["clarifying_question"], catalog=catalog
+        )
+        if resolved.status != "MATCHED":
+            raise SystemExit(
+                f"pane {pane_id!r}: answering {spec['answer']!r} to {spec['answers']!r} returned "
+                f"{resolved.status}, not MATCHED. The exchange this pane depicts no longer "
+                "resolves, so the pane would be claiming an outcome the engine does not produce."
+            )
+
+        panes[pane_id] = build(
+            case_id=None,
+            question=spec["answer"],
+            member_id=turn_one["member_id"],
+            cpt_code=resolved.cpt_code,
+            response_type="STANDARD_COST",
+            date_of_service=None,
+            asked_on=None,
         )
 
     return panes

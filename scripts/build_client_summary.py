@@ -89,12 +89,25 @@ SHOTS = [
     ),
     (
         "clarify-ambiguous-mri.png",
-        "Your committee's question, answered",
+        "Your committee's question, answered — turn 1",
         "Asked for “an MRI”, it asks which one rather than choosing.",
         "This screen exists because of the question raised in your steering meeting: the "
         "model does not produce numbers, but it does pick the procedure — so what happens "
         "when it picks wrong? Testing that rather than answering it from the design found "
-        "two real defects, both now fixed and both covered by the automated checks.",
+        "two real defects, both now fixed and both covered by the automated checks. Note "
+        "there is no price on this screen at all: nothing is priced until the rep says which "
+        "procedure they meant.",
+    ),
+    (
+        "clarify-answered-knee.png",
+        "…and turn 2",
+        "The rep answers, and it prices what they said — named, with its code.",
+        "The exchange completing. The rep answers “knee” and the system prices MRI Knee, "
+        "CPT 73721. Every quote now names the procedure it priced, which is the honest answer "
+        "to the one risk the design cannot remove: if the procedure were ever wrong, it would "
+        "be wrong in the open, on the screen, in front of the person who can catch it. Worth "
+        "saying plainly — that was not true a week ago. The ordinary cost screen showed a "
+        "total without naming what it had priced, and we found it while building this pair.",
     ),
     (
         "demo-4-termed-block.png",

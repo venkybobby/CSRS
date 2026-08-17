@@ -52,7 +52,8 @@ PAGES = [
             ("exclusion-bronze", "Story 6 -- S8092 on Bronze: excluded"),
             ("rate-not-found-silver", "Story 6 -- same S8092 on Silver: no rate on file"),
             ("preventive-zero-cost", "Preventive -- covered at 100%, member owes $0"),
-            ("clarify-ambiguous-mri", "Ambiguous procedure -- asks instead of choosing"),
+            ("clarify-ambiguous-mri", "Turn 1 -- ambiguous procedure, asks instead of choosing"),
+            ("clarify-answered-knee", "Turn 2 -- the CSR answers, and it prices"),
         ],
     },
 ]
