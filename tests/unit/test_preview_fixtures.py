@@ -39,6 +39,15 @@ def committed() -> dict:
     return json.loads(OUTPUT_PATH.read_text())
 
 
+def _eval_cases() -> list[dict]:
+    """The eval cases, as the generator itself reads them. Imported lazily
+    for the same reason the callers used to inline it -- pyyaml is a dev
+    dependency and this module is imported by tooling that does not need it."""
+    import yaml
+
+    return yaml.safe_load((REPO_ROOT / "evals" / "demo_scripts.yaml").read_text())["cases"]
+
+
 def test_committed_fixtures_match_a_fresh_generation(committed):
     """The whole guard, in one comparison.
 
@@ -77,12 +86,7 @@ def test_eval_backed_panes_quote_their_case_verbatim(committed):
     illustration: the caption is the input the eval suite actually runs, so
     the image cannot claim a case it does not depict.
     """
-    import yaml
-
-    cases = {
-        case["id"]: case
-        for case in yaml.safe_load((REPO_ROOT / "evals" / "demo_scripts.yaml").read_text())["cases"]
-    }
+    cases = {case["id"]: case for case in _eval_cases()}
     for pane_id, case_id in PANES_FROM_EVAL_CASES.items():
         pane = committed[pane_id]
         assert pane["case_id"] == case_id
@@ -91,14 +95,39 @@ def test_eval_backed_panes_quote_their_case_verbatim(committed):
 
 
 def test_standalone_panes_carry_no_borrowed_case_id(committed):
-    """A pane with no eval case must say so.
+    """A standalone pane's stamp must be earned, or absent.
 
-    The UI renders a null case_id as an explicit "no eval case" stamp. If one
-    of these ever acquired an id it would be a borrowed one, and the
-    screenshot would point at a case that asserts nothing about it.
+    This began as "standalone panes must have a null case_id", which was the
+    right rule while no eval case existed for the prior-auth banner: the UI
+    renders null as an explicit "no eval case" stamp, and any id would have
+    been borrowed from a case asserting nothing about that screen.
+
+    prior_auth_required_on_silver now asserts exactly what the prior-auth
+    pane shows, so the blanket rule would forbid a true statement. What the
+    original was really protecting is kept and made checkable: a stamp must
+    name a case that exists AND that is about this pane's member and
+    procedure. An id whose case has been renamed, deleted, or repointed at a
+    different member fails here -- which is strictly worse than "no eval
+    case", because that label was at least honest about having no coverage.
     """
+    cases = {case["id"]: case for case in _eval_cases()}
+
     for pane_id in STANDALONE_PANES:
-        assert committed[pane_id]["case_id"] is None, pane_id
+        pane = committed[pane_id]
+        case_id = pane["case_id"]
+        if case_id is None:
+            continue
+
+        assert case_id in cases, f"{pane_id}: stamp names {case_id!r}, which no longer exists"
+        case = cases[case_id]
+        assert case["member_id"] == pane["member_id"], (
+            f"{pane_id}: stamped {case_id!r}, but that case is about member "
+            f"{case['member_id']} and this pane shows {pane['member_id']}"
+        )
+        assert case.get("expected_cpt_code") == pane["procedure"]["cpt_code"], (
+            f"{pane_id}: stamped {case_id!r}, but that case is about CPT "
+            f"{case.get('expected_cpt_code')} and this pane shows {pane['procedure']['cpt_code']}"
+        )
 
 
 def test_priced_panes_price_only_what_the_plan_covers(committed):
@@ -133,12 +162,7 @@ def test_only_standard_cost_cases_carry_a_breakdown(committed):
     or the rate-not-found pane would mean the generator had priced something
     the plan cannot price.
     """
-    import yaml
-
-    cases = {
-        case["id"]: case
-        for case in yaml.safe_load((REPO_ROOT / "evals" / "demo_scripts.yaml").read_text())["cases"]
-    }
+    cases = {case["id"]: case for case in _eval_cases()}
     for pane_id, case_id in PANES_FROM_EVAL_CASES.items():
         expected_standard = cases[case_id].get("expected_response_type") == "STANDARD_COST"
         has_breakdown = committed[pane_id]["breakdown"] is not None

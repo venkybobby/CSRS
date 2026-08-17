@@ -81,10 +81,22 @@ PANES_FROM_EVAL_CASES = {
     "clarify-ambiguous-mri": "bare_procedure_family_asks_which_one",
 }
 
-# The one pane with no eval case behind it. Story 4's prior-auth banner is
-# not triggered by any demo-script or date-of-service case, so its ask is
-# declared here instead of read from demo_scripts.yaml -- and it is rendered
-# with an explicit "no eval case" stamp rather than a borrowed id.
+# Panes whose ask is declared here rather than read from demo_scripts.yaml,
+# because the pane needs an input the eval case deliberately does not carry.
+#
+# The prior-auth banner used to sit here with case_id=None and rendered an
+# explicit "no eval case" stamp -- honest, and the visible counterpart of the
+# gap MVP1_STATUS.md disclosed. That gap is now closed by
+# prior_auth_required_on_silver, so the pane carries the real id.
+#
+# It stays standalone rather than moving to PANES_FROM_EVAL_CASES because of
+# one deliberate difference: this pane adds a date of service, so the screen
+# also demonstrates the assumption line ("Balances are as of today and may
+# change before..."), while the eval case omits any date on purpose -- a case
+# that pins `today` has its outcome assertions SKIPPED in live mode, which
+# would have gated the prior-auth flag offline only. The stamp is therefore a
+# claim about the prior-auth behaviour this screen exists to show, which is
+# genuinely gated, and not a claim that the date row is.
 #
 # M1002 + MRI Brain, for two independent reasons: 73721 is not prior-auth
 # under Meridian Silver (only 70551 and 72148 are), and M1002's real
@@ -92,7 +104,7 @@ PANES_FROM_EVAL_CASES = {
 # a single deductible row.
 STANDALONE_PANES = {
     "prior-auth": {
-        "case_id": None,
+        "case_id": "prior_auth_required_on_silver",
         "question": "MRI brain for M1002",
         "member_id": "M1002",
         "cpt_code": "70551",
@@ -289,8 +301,18 @@ def build_panes() -> dict[str, Any]:
         )
 
     for pane_id, spec in STANDALONE_PANES.items():
+        # A stamp naming a case that no longer exists is worse than the "no
+        # eval case" label it replaced: the label was honest about having no
+        # coverage, whereas a dangling id asserts coverage that has gone.
+        # Renaming or dropping the case must break the build here.
+        declared = spec["case_id"]
+        if declared is not None and declared not in cases:
+            raise SystemExit(
+                f"pane {pane_id!r} claims eval case {declared!r}, which is not in "
+                "demo_scripts.yaml -- set case_id to None or fix the id"
+            )
         panes[pane_id] = build(
-            case_id=spec["case_id"],
+            case_id=declared,
             question=spec["question"],
             member_id=spec["member_id"],
             cpt_code=spec["cpt_code"],

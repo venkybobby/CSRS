@@ -100,6 +100,16 @@ Full ordered runbook: [docs/architecture/cicd-setup.md](docs/architecture/cicd-s
 
 Being direct about this rather than claiming untested code works:
 
+- **Seed corrected against Meridian's own rate sheet, and gated (2026-08-16)**: the workbook
+  named as a source input in the spec had never been in the repo. Diffing against it found 8 of
+  11 shared rates drifted, 4 of Meridian's procedures missing, and 3 seeded that Meridian never
+  negotiated. The only correct rates were the three back-derived from worked examples. Nothing
+  in the suite could have caught this — the numeric-provenance guardrail asks whether a figure
+  came from a tool, and all of them had; the 18 deterministic cases passed identically before
+  and after. `tests/unit/test_rate_sheet_source.py` is the only check that reads an artifact
+  from outside the system. The post-deploy gate then passed **22/22** against Agent Engine
+  `reasoningEngines/2985492378028081152` (build `4439a4d5`), the first deploy carrying the
+  corrected seed.
 - **Live verification against the deployed dev agent (2026-08-15)**: `run_eval.py --mode live`
   passed **20/20** against Agent Engine `reasoningEngines/2344521079499784192` in `csrs-504922`
   (`us-central1`) -- the 16 demo/regression cases plus all 4 adversarial cases, under a real
@@ -173,8 +183,12 @@ Being direct about this rather than claiming untested code works:
   1–5). Both need only a vite dev server: no BFF, no agent, no database. Every pane shows the
   CSR's input — the question verbatim from the eval case, the member ID, and the date of service
   where one was stated — above the result it produced, and is stamped with the id of the case in
-  `evals/demo_scripts.yaml` it depicts (or an explicit "no eval case" for the prior-auth banner,
-  which no case happens to trigger). Every dollar figure was produced by running the real
+  `evals/demo_scripts.yaml` it depicts. Every pane now carries a real id: the prior-auth banner
+  was the one exception, stamped "no eval case" because none triggered it, and
+  `prior_auth_required_on_silver` closed that. A stamp naming a case that does not exist, or one
+  about a different member or CPT, fails `tests/unit/test_preview_fixtures.py` — the label was
+  honest about having no coverage, so anything replacing it has to be honest about having some.
+  Every dollar figure was produced by running the real
   calculator against `db/seed`, and the figures that a case pins match its `expected_fields`.
   Re-run the script after any change to the result components — a stale screenshot is worse than
   none, because it reads as current.
