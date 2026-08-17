@@ -255,3 +255,62 @@ cases:
     expected_response_type: "STANDARD_COST"
     expected_tool_sequence: [check_eligibility, resolve_procedure, estimate_member_cost]
     expected_message_contains: ["Coverage ends 2026-08-31", "confirm date of service"]
+
+  # --- Prior authorisation (Story 4) --------------------------------------
+  #
+  # The gap the story-coverage audit found and MVP1_STATUS.md disclosed: the
+  # prior-auth warning was verified by the integration suite in both
+  # directions and visible in the screenshots, but had no case here -- so it
+  # was verified and not GATED. A regression that stopped the warning
+  # surfacing would have passed the post-deploy check and reached a CSR, who
+  # would then quote a cost on a procedure that can be denied for want of an
+  # authorisation nobody mentioned.
+  #
+  # The negative direction was already gated, incidentally rather than
+  # deliberately: demo_1 asserts prior_auth_required is false for 73721 on
+  # Silver. What was missing is the positive, and the pair that makes either
+  # meaningful.
+  #
+  # Same shape as the exclusion/no-rate pair above, and for the same reason:
+  # one CPT code, two plans, two different obligations on the rep. 70551 is
+  # in Silver's prior_auth_required_codes and is not in Gold's, so a change
+  # that made the flag constant in either direction breaks one of these two
+  # even though both remain STANDARD_COST quotes with correct arithmetic.
+  # That is the failure worth catching -- the money is right and the
+  # instruction to the member is wrong.
+
+  - id: prior_auth_required_on_silver
+    question: "MRI brain for M1002"
+    member_id: "M1002"
+    expected_cpt_code: "70551"
+    expected_response_type: "STANDARD_COST"
+    expected_tool_sequence: [check_eligibility, resolve_procedure, estimate_member_cost]
+    expected_fields:
+      breakdown.negotiated_rate: "1450.00"
+      breakdown.member_cost: "530.00"
+      breakdown.prior_auth_required: true
+    # Story 4 fixes this wording; the rep reads it to a member, so drift in
+    # it is a client-visible change and not a copy tweak.
+    # Story 4 mandates this wording verbatim, including the plan name -- the
+    # rep reads it to a member, so drift is a client-visible change and not a
+    # copy tweak. Asserted against the spec's string, not the UI's: the
+    # frontend renders its own longer variant, and it was the spec's that
+    # Story 4 fixed.
+    expected_message_contains:
+      - "Prior authorization required for MRI Brain (70551)"
+      - "Meridian Silver 2026"
+      - "Advise member to obtain auth before service"
+      - "assumes auth is approved"
+
+  - id: prior_auth_not_required_on_gold
+    question: "MRI brain for M1003"
+    member_id: "M1003"
+    expected_cpt_code: "70551"
+    expected_response_type: "STANDARD_COST"
+    expected_tool_sequence: [check_eligibility, resolve_procedure, estimate_member_cost]
+    expected_fields:
+      breakdown.negotiated_rate: "1450.00"
+      breakdown.member_cost: "145.00"
+      breakdown.prior_auth_required: false
+    must_differ_from: prior_auth_required_on_silver
+    must_differ_fields: [breakdown.prior_auth_required]

@@ -147,7 +147,7 @@ SLIDES = [
             ("User stories implemented", "8 / 8", "Audited against your requirements document", "ok"),
             ("Unit tests", "107 passed", "Pure logic, no external services", "ok"),
             ("Integration tests", "17 passed", "Against a real PostgreSQL database", "ok"),
-            ("Scenario suite, offline", "18 / 18", "Every figure pinned to your worked examples", "ok"),
+            ("Scenario suite, offline", "20 / 20", "Every figure pinned to your worked examples", "ok"),
             (
                 "Rates vs. your workbook",
                 "15 / 15",
@@ -156,9 +156,9 @@ SLIDES = [
             ),
             (
                 "Scenario suite, live",
-                "20 / 20",
-                "Deployed system, real language model. Re-runs at 22 cases on the next "
-                "deployment — the two added this week are gated offline today.",
+                "22 / 22",
+                "Deployed system, real language model. Re-runs at 24 cases on the next "
+                "deployment — the prior-auth pair is gated offline today.",
                 "ok",
             ),
             ("Adversarial attempts", "4 / 4 repelled", "Including a claimed supervisor override", "ok"),
@@ -167,13 +167,14 @@ SLIDES = [
         "kicker": "The last row is the honest one, and it is why I am asking for an hour.",
         "say": "Here is where it stands. Eight of eight user stories implemented, and audited "
         "against your own requirements document rather than against our memory of it. A hundred "
-        "and seven unit tests, seventeen integration tests against a real database, eighteen of "
-        "eighteen scenario cases offline with every figure pinned to the worked examples in your "
+        "and seven unit tests, seventeen integration tests against a real database, twenty of "
+        "twenty scenario cases offline with every figure pinned to the worked examples in your "
         "spec. The fourth row is new since we last spoke, and it is there because we found we "
         "needed it: every negotiated rate in the system is now diffed against your own 2026 rate "
         "sheet on every single build, and the build fails on any disagreement. "
-        "Then twenty of twenty against the deployed system answering through a real language "
-        "model — that run also checks the order in which it did things, which is the guarantee "
+        "Then twenty-two of twenty-two against the deployed system answering through a real "
+        "language model — that run also checks the order in which it did things, which is the "
+        "guarantee "
         "no offline test can give you. Four adversarial attempts, all repelled. And then the "
         "last row: zero reps have used it. That is the honest one, and it is exactly why I am "
         "asking for an hour.",
@@ -398,9 +399,11 @@ SLIDES = [
             "Only the development environment exists. There is no staging and no production.",
             "Retention is recorded at seven years. The job that enforces it is not built — "
             "that belongs to the production promotion.",
-            "The prior-authorisation warning is verified by test in both directions, but it is "
-            "not covered by the automatic post-deployment check. We found that ourselves and "
-            "are telling you rather than fixing it quietly.",
+            "The prior-authorisation warning had no case in the automatic post-deployment "
+            "check. We found that ourselves and told you rather than fixing it quietly; it is "
+            "now gated as a pair — required on Silver, not required on Gold — so a change that "
+            "makes the flag constant fails one of them. The residual is timing: both run "
+            "offline today, and join the post-deployment check on the next deployment.",
             "Our seeded rates had drifted from your rate sheet — eight of them, four of your "
             "procedures missing, three we had invented. Corrected, and it now fails the build. "
             "The lesson is larger than the fix: our guardrail proves a figure came from the "
@@ -429,9 +432,11 @@ SLIDES = [
         "Only the development environment exists — no staging, no production. Retention is "
         "recorded at seven years, but the job that actually enforces it is not built; that "
         "belongs to the production promotion and nothing is close to the boundary yet. The "
-        "prior-authorisation warning is verified by test in both directions but is not covered "
-        "by our automatic post-deployment check — we found that ourselves during an audit this "
-        "week, and I am telling you rather than fixing it quietly and saying nothing. The same "
+        "prior-authorisation warning had no case in our automatic post-deployment check — we "
+        "found that ourselves during an audit this week, told you rather than fixing it quietly, "
+        "and it is now gated as a pair: required on Silver, not required on Gold, so a change "
+        "that makes that flag constant fails one of the two. The only residual is timing — both "
+        "run offline today and join the deployment check on the next deploy. The same "
         "audit found something sharper. Our seeded rates had drifted from your rate sheet: eight "
         "of them wrong, four of your procedures missing, three in our system that you have never "
         "negotiated. Every figure we ever showed you was right, and not by luck — the only rates "
