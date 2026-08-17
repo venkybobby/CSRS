@@ -33,9 +33,14 @@ OUTPUT = REPO_ROOT / "docs" / "demo" / "client-summary.html"
 
 SCOREBOARD = [
     ("User stories implemented", "8 / 8", "Audited against your requirements document"),
-    ("Unit tests", "103 passed", "Pure logic, no external services"),
+    ("Unit tests", "107 passed", "Pure logic, no external services"),
     ("Integration tests", "17 passed", "Against a real PostgreSQL database"),
     ("Scenario suite, offline", "18 / 18", "Every figure pinned to your worked examples"),
+    (
+        "Rates vs. your workbook",
+        "15 / 15",
+        "Every negotiated rate diffed against rate_sheet_2026.xlsx on every build",
+    ),
     ("Scenario suite, live", "22 / 22", "Run automatically on every deployment"),
     ("Adversarial attempts", "4 / 4 repelled", "Including a claimed supervisor override"),
 ]
@@ -148,6 +153,14 @@ NOT_CLAIMING = [
     "The guardrail has not been watched firing in the real interface, nor its alert "
     "confirmed in monitoring.",
     "Only the development environment exists. Staging is approved but not built.",
+    "Our seeded rates had drifted from your rate sheet — eight of them wrong, four of "
+    "your procedures missing, three in our system you have never negotiated. Every "
+    "figure ever shown to you was still correct, and not by luck: the only rates that "
+    "were right were the ones derived from the worked examples in your own requirements "
+    "document. It is corrected, and the build now fails on any disagreement with your "
+    "workbook. The reason it happened is the part worth your attention — our check asks "
+    "whether a number came from our data, and cannot ask whether our data was right. "
+    "Only reading your workbook answers that, and now something does, on every build.",
     "Retention is recorded at seven years. The job that performs the deletion is not "
     "built — it belongs to the production promotion, and nothing is near the boundary.",
     "This supports a compliance position. It does not certify one. A person signs off, "
