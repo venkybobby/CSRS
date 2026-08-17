@@ -99,12 +99,20 @@ repository, and `demo_3b` asserts the `FAMILY` label with a guard that fails
 if it ever collapses onto `demo_3a`'s `INDIVIDUAL`. Nothing rests on
 transcription any more.
 
-**One gap the audit did find**, recorded here rather than quietly fixed: the
-prior-authorisation flag (Story 4) is covered by the integration suite in both
-directions and appears in the screenshots, but it has no case in the eval
-suite. That means it is *verified* but not *gated* — a regression that stopped
-the warning from surfacing would not fail the post-deploy check. It is a small
-addition to `evals/demo_scripts.yaml` and worth making before production.
+**One gap the audit found, now closed.** The prior-authorisation flag (Story 4)
+was covered by the integration suite in both directions and visible in the
+screenshots, but had no case in the eval suite — *verified* but not *gated*, so
+a regression that stopped the warning surfacing would not have failed the
+post-deploy check. It is gated now, as a pair: CPT 70551 requires prior
+authorisation on Silver and does not on Gold, so a change that makes the flag
+constant in either direction fails one of the two even though both remain
+correct-looking quotes with correct arithmetic. That is the failure worth
+catching — the money right and the instruction to the member wrong. The
+Story 4 wording is asserted verbatim, because a rep reads it to a member.
+
+One honest qualification on timing: both cases are gated **offline today**. The
+automatic post-deployment check picks them up on the next deployment, taking
+that run from 22 cases to 24.
 
 ---
 
