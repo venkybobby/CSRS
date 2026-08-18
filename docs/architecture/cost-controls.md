@@ -134,6 +134,64 @@ decision is seven years from creation.
 
 ---
 
+## Before going public — are the identifiers in this doc a real exposure?
+
+**Checked 2026-08-18.** This doc names `csrs-504922`, the project number
+`375096314532`, both Cloud Run service names, and several reasoning-engine
+resource IDs. Before deciding whether making the repo public needs a
+git-history purge (an afternoon vs. not worth doing), verified whether any
+of it is reachable without authentication -- a bare project ID is not a
+secret in the credential sense, so the real question is exposure, not
+presence.
+
+**Cloud Run (both services):** IAM invoker policy grants `roles/run.invoker`
+to exactly one member -- IAP's own service agent
+(`service-375096314532@gcp-sa-iap.iam.gserviceaccount.com`). No `allUsers`,
+no `allAuthenticatedUsers`. Ingress is `internal-and-cloud-load-balancing`
+on both -- the direct `*.run.app` URLs aren't routable from the public
+internet at all, IAM aside. Confirmed empirically: an unauthenticated curl
+to both direct URLs returns a bare 404 with no app content and no `server:
+Google Frontend` header -- the request never reaches Cloud Run's own auth
+check, let alone the container.
+
+```bash
+gcloud run services get-iam-policy csrsupport-bff-dev --project=csrs-504922 --region=us-central1
+# -> roles/run.invoker granted only to the IAP service agent
+
+gcloud run services describe csrsupport-bff-dev --project=csrs-504922 --region=us-central1 \
+  --format="value(metadata.annotations['run.googleapis.com/ingress'])"
+# -> internal-and-cloud-load-balancing (both services)
+
+curl -sI "$(gcloud run services describe csrsupport-bff-dev --project=csrs-504922 --region=us-central1 --format='value(status.url)')"
+# -> HTTP/1.1 404 Not Found, no app content, no Google Frontend header
+```
+
+**Reasoning engines:** no bare URL exists for them at all -- access is
+exclusively through `aiplatform.googleapis.com` with a mandatory
+`Authorization: Bearer` token. Even a fully authenticated call from the
+project owner's own account currently gets `403 PERMISSION_DENIED` (the
+billing hold, step 0 above) -- an anonymous caller has nothing to hit.
+Knowing a numeric resource ID grants no reach without IAM permission on
+that specific resource.
+
+**Conclusion: hygiene, not a requirement.** The project ID, service names,
+and reasoning-engine IDs name things -- they don't open them. Step zero
+(Wednesday) is scoped accordingly: move them out of `HEAD` (env vars or an
+untracked ops file), re-run the sweep against the post-scrub state, then
+flip public. An 81-commit history purge is not justified by actual exposure
+and should not be done by default just because "sweep" is in the name --
+this is what settles that before doing the more expensive thing.
+
+**Gotcha carried over from today's sweep:** `git check-ignore` in this
+environment fabricates a match for *any* path ending in `.claude/`,
+including ones that don't exist (`git check-ignore -v
+made/up/nonexistent.claude/` "matches"). Verify anything moved out of
+tracking with `git status --ignored=matching` (look for `!!`), not
+`check-ignore` -- that is how `infra/envs/.claude/` was found genuinely
+unprotected today after an earlier pass wrongly called it covered.
+
+---
+
 ## What none of this affects
 
 Every client-facing artefact is generated from `db/seed` through the real
