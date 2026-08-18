@@ -134,16 +134,22 @@ STANDALONE_PANES = {
 # Low Back by the required margin, the build fails instead of shipping a pane
 # that says it resolved.
 #
-# case_id is None on purpose. There is no eval case for a two-turn exchange
-# (demo_scripts.yaml cases are single-question), so this pane renders the
-# honest "no eval case" stamp. It is gated by
-# tests/unit/test_rate_matcher.py::test_clarification_answer_resolves_to_knee
-# rather than by the post-deploy suite, and the stamp should keep saying so
-# until that is no longer true.
+# `case` names the eval case in evals/demo_scripts.yaml's `multi_turn_cases:`
+# block that this pane depicts -- evals/run_eval.py::run_multi_turn() runs
+# exactly this exchange (same question, same answer, same member) and gates
+# it against a cold twin (cold_knee_alone_needs_clarification: "knee" asked
+# with no pending turn 1 must NOT resolve). The pane used to carry
+# case_id=None and render an honest "no eval case" stamp, because
+# demo_scripts.yaml's `cases:` are single-question and none of them covered a
+# second turn; that gap is what run_multi_turn closes, so the stamp now names
+# a case that is genuinely gated rather than only unit-tested. See also
+# tests/unit/test_rate_matcher.py::test_clarification_answer_resolves_to_knee,
+# which predates the eval case and still stands behind the same exchange.
 CLARIFICATION_ANSWER_PANES = {
     "clarify-answered-knee": {
         "answers": "clarify-ambiguous-mri",
         "answer": "knee",
+        "case": "clarify_mri_then_knee_resolves_to_mri_knee",
     },
 }
 
@@ -163,7 +169,9 @@ def build_panes() -> dict[str, Any]:
     rates = _by_id(_load("rate_sheet.json"), "cpt_code")
     members = _by_id(_load("members.json"), "member_id")
     accumulators = _by_id(_load("member_accumulators.json"), "member_id")
-    cases = _by_id(yaml.safe_load(DEMO_SCRIPTS.read_text())["cases"], "id")
+    demo_scripts_doc = yaml.safe_load(DEMO_SCRIPTS.read_text())
+    cases = _by_id(demo_scripts_doc["cases"], "id")
+    multi_turn_cases = _by_id(demo_scripts_doc.get("multi_turn_cases", []), "id")
 
     def member_context(member_id: str) -> dict[str, Any]:
         """Who the member is, straight from db/seed.
@@ -367,6 +375,16 @@ def build_panes() -> dict[str, Any]:
                 "clarifying question -- it is not a turn 1"
             )
 
+        # A stamp naming a case that no longer exists is worse than the "no
+        # eval case" label it replaced -- see STANDALONE_PANES' identical
+        # check above for why.
+        declared_case = spec["case"]
+        if declared_case not in multi_turn_cases:
+            raise SystemExit(
+                f"pane {pane_id!r} claims eval case {declared_case!r}, which is not in "
+                "demo_scripts.yaml's multi_turn_cases -- set case to None or fix the id"
+            )
+
         offered = [candidate["cpt_code"] for candidate in asked["candidates"]]
         resolved = resolve_clarification(
             spec["answer"], offered, asked["clarifying_question"], catalog=catalog
@@ -379,7 +397,7 @@ def build_panes() -> dict[str, Any]:
             )
 
         panes[pane_id] = build(
-            case_id=None,
+            case_id=declared_case,
             question=spec["answer"],
             member_id=turn_one["member_id"],
             cpt_code=resolved.cpt_code,

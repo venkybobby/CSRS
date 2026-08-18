@@ -430,7 +430,7 @@
     }
   },
   "clarify-answered-knee": {
-    "case_id": null,
+    "case_id": "clarify_mri_then_knee_resolves_to_mri_knee",
     "question": "knee",
     "member_id": "M1001",
     "date_of_service": null,

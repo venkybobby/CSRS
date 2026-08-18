@@ -146,6 +146,26 @@ cases:
     must_differ_from: bare_procedure_family_asks_which_one
     must_differ_fields: [response_type]
 
+  # --- Cold twin: turn-2 resolution needs turn-1 context ------------------
+  #
+  # "knee" sent cold -- no pending clarification, nothing carried over --
+  # must NOT resolve to MRI Knee. The word is shared by three different
+  # procedures (MRI Knee, Knee X-Ray, Knee Arthroscopy/Surgery), so it asks
+  # rather than guesses. This is the negative control for
+  # clarify_mri_then_knee_resolves_to_mri_knee below: without it, a system
+  # that just keyword-mapped "knee" to 73721 would pass that case too, for
+  # the wrong reason. Paired via must_differ_from on the multi-turn case, the
+  # same way qualified_procedure_does_not_ask is paired with
+  # bare_procedure_family_asks_which_one above.
+
+  - id: cold_knee_alone_needs_clarification
+    question: "knee"
+    member_id: "M1001"
+    expected_cpt_code: null
+    expected_response_type: "NEEDS_CLARIFICATION"
+    expected_tool_sequence: [check_eligibility, resolve_procedure]
+    expected_candidate_cpt_codes: ["29881", "73562", "73721"]
+
   # --- Exclusion vs. no-rate ---------------------------------------------
   #
   # The subtlest trap in the set: S8092 has a NULL negotiated_rate AND is
@@ -314,3 +334,51 @@ cases:
       breakdown.prior_auth_required: false
     must_differ_from: prior_auth_required_on_silver
     must_differ_fields: [breakdown.prior_auth_required]
+
+# --- Multi-turn cases -------------------------------------------------------
+#
+# demo_scripts.yaml's `cases:` above are single-question: run_eval.py's
+# deterministic mode calls resolve_procedure/estimate_member_cost exactly
+# once per case. That cannot exercise resolve_clarification, the real turn-2
+# API -- so the clarification exchange (Story 2/7) that
+# scripts/generate_preview_fixtures.py renders as the `clarify-answered-knee`
+# pane had no eval case behind it, only tests/unit/test_rate_matcher.py's
+# test_clarification_answer_resolves_to_knee. That test still exists and
+# still passes; this is the same exchange promoted to a gated eval case, run
+# by evals/run_eval.py's run_multi_turn().
+#
+# Each case's turns list is [turn 1, turn 2]. Turn 1 is checked the same way
+# a NEEDS_CLARIFICATION case above is (response_type, candidate set). Turn 2
+# calls resolve_clarification() restricted to the CODES TURN 1 ACTUALLY
+# OFFERED -- never the full catalog -- so a passing case proves the
+# resolution came from the carried-over candidate pool, not from re-matching
+# the answer against the whole rate sheet. The resolved procedure is then
+# priced through estimate_member_cost(), so the final breakdown fields are
+# asserted exactly like any other STANDARD_COST case.
+#
+# must_differ_from points at cold_knee_alone_needs_clarification above: the
+# same word ("knee"), asked with no turn-1 context, must NOT reach
+# STANDARD_COST. That is what rules out a matcher that simply keyword-maps
+# "knee" to 73721 -- such a matcher would pass this case's turn 2 for the
+# wrong reason, but it would also resolve the cold twin, which must ask
+# instead.
+multi_turn_cases:
+  - id: clarify_mri_then_knee_resolves_to_mri_knee
+    member_id: "M1001"
+    turns:
+      - question: "M1001 wants an MRI"
+        expected_response_type: "NEEDS_CLARIFICATION"
+        expected_candidate_cpt_codes: ["70551", "72148", "73721"]
+      - answer: "knee"
+        expected_response_type: "STANDARD_COST"
+        expected_cpt_code: "73721"
+        expected_fields:
+          breakdown.negotiated_rate: "1150.00"
+          breakdown.applied_to_deductible: "1150.00"
+          breakdown.balance_after_deductible: "0.00"
+          breakdown.coinsurance_amount: "0.00"
+          breakdown.member_cost: "1150.00"
+          breakdown.oop_cap_triggered: false
+          breakdown.prior_auth_required: false
+    must_differ_from: cold_knee_alone_needs_clarification
+    must_differ_fields: [response_type]
