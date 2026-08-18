@@ -43,6 +43,14 @@ Thumbs.db
 .claude/data/
 *.tsbuildinfo
 
+# Claude Code runtime state for sessions run from infra/envs/ -- transcripts
+# can carry anything typed or pasted during a debugging session in that
+# directory (real endpoint values, output from gcloud/terraform commands
+# against real infra), so this is a repo-sweep finding, not a style choice:
+# unlike .claude/ at the repo root (project config, meant to be tracked),
+# this one is pure runtime log and was sitting untracked and unprotected.
+infra/envs/.claude/
+
 # Recorded demo takes. Regenerable by scripts/record_demo_video.py and large
 # (~5 MB each), and a video is re-recorded per take rather than maintained --
 # unlike docs/screenshots/, which is committed precisely because it is the
