@@ -26,6 +26,14 @@ numeric-provenance guardrail. Live mode deliberately does NOT re-assert
 dollar figures: deterministic mode already pins those, and re-checking them
 here would only add model flakiness to a signal that is already exact.
 
+demo_scripts.yaml's `multi_turn_cases:` block is a third, smaller category,
+run only in deterministic mode (see run_multi_turn): a two-turn clarification
+exchange (ask -> "which one?" -> answer -> priced), calling
+resolve_clarification() -- the real turn-2 API -- restricted to the
+candidates turn 1 actually offered. There is no live-mode equivalent yet;
+that would need a second message sent in the SAME agent session, which ask()
+below does not currently support.
+
 Usage:
     DATABASE_URL=postgresql+psycopg2://... python evals/run_eval.py --mode deterministic
     AGENT_ENGINE_RESOURCE_NAME=... python evals/run_eval.py --mode live --env dev
@@ -57,12 +65,19 @@ def _get_path(obj: dict, dotted: str) -> Any:
     return current
 
 
-def run_deterministic(cases: list[dict]) -> list[tuple[str, str | None]]:
+def run_deterministic(
+    cases: list[dict], results: dict[str, dict] | None = None
+) -> list[tuple[str, str | None]]:
     """Returns a list of (case_id, failure_reason_or_None). Branches
     directly on expected_response_type, mirroring the three real control
     paths a case can take: blocked before any procedure lookup (termed),
     an honest miss caught by resolve_procedure alone (pipeline never
-    runs), or the standard resolve-then-price path."""
+    runs), or the standard resolve-then-price path.
+
+    `results` defaults to a fresh dict, but a caller running run_multi_turn
+    in the same session can pass its own dict in so both populate ONE
+    results table -- that is what lets a multi-turn case's must_differ_from
+    point at a single-turn case (the cold twin) or vice versa."""
     from csr_agent.data.rate_matcher import match_procedure
     from csr_agent.pipeline.estimate import estimate_member_cost
 
@@ -75,7 +90,8 @@ def run_deterministic(cases: list[dict]) -> list[tuple[str, str | None]]:
         "trace_id": "eval-trace",
     }
 
-    results: dict[str, dict] = {}
+    if results is None:
+        results = {}
     outcomes: list[tuple[str, str | None]] = []
 
     # Outcomes decided before any procedure lookup happens. The cpt value
@@ -167,7 +183,22 @@ def run_deterministic(cases: list[dict]) -> list[tuple[str, str | None]]:
         except Exception as exc:
             outcomes.append((case_id, f"exception: {exc!r}"))
 
-    # Cross-case checks
+    _check_must_differ(cases, results, outcomes)
+
+    return outcomes
+
+
+def _check_must_differ(
+    cases: list[dict], results: dict[str, dict], outcomes: list[tuple[str, str | None]]
+) -> None:
+    """A case declaring must_differ_from asserts that its result and the
+    named other case's result disagree on the given fields.
+
+    Shared by run_deterministic and run_multi_turn -- both populate the same
+    `results` dict by case id, so a multi-turn case can point must_differ_from
+    at a single-turn case (e.g. a cold-twin negative control) or vice versa,
+    not only at another case of the same kind.
+    """
     for case in cases:
         must_differ_from = case.get("must_differ_from")
         if not must_differ_from:
@@ -188,8 +219,6 @@ def run_deterministic(cases: list[dict]) -> list[tuple[str, str | None]]:
                     case_id,
                     f"{field_path} must differ from {must_differ_from} but both are {a!r}",
                 ))
-
-    return outcomes
 
 
 def _check_case(case: dict, result_dict: dict, outcomes: list[tuple[str, str | None]]) -> None:
@@ -237,6 +266,83 @@ def _check_case(case: dict, result_dict: dict, outcomes: list[tuple[str, str | N
 
     if not failed:
         outcomes.append((case_id, None))
+
+
+def run_multi_turn(
+    cases: list[dict], results: dict[str, dict]
+) -> list[tuple[str, str | None]]:
+    """Two-turn clarification exchanges: ask -> "which one?" -> answer ->
+    priced. See the `multi_turn_cases:` block in demo_scripts.yaml for why
+    run_deterministic (single question in, single result out) cannot cover
+    this on its own.
+
+    Turn 1 is checked the same way any NEEDS_CLARIFICATION case is. Turn 2
+    calls resolve_clarification() restricted to the codes turn 1 ACTUALLY
+    offered, never the full catalog -- the same restriction the real
+    turn-2 API applies -- so a passing case proves the resolution came from
+    the carried-over candidate pool rather than from re-matching the answer
+    against the whole rate sheet. `results` is the same dict run_deterministic
+    populates, so a multi-turn case's must_differ_from can point at a
+    single-turn case (a cold twin) and be checked by the same
+    _check_must_differ pass.
+    """
+    from csr_agent.data.rate_matcher import match_procedure, resolve_clarification
+    from csr_agent.pipeline.estimate import estimate_member_cost
+
+    audit_ctx = {
+        "csr_user_id": "eval-harness@meridianhealthplans.com",
+        "session_id": "eval-session",
+        "invocation_id": "eval-invocation",
+        "trace_id": "eval-trace",
+    }
+
+    outcomes: list[tuple[str, str | None]] = []
+
+    for case in cases:
+        case_id = case["id"]
+        try:
+            member_id = case["member_id"]
+            turn1, turn2 = case["turns"]
+
+            match = match_procedure(turn1["question"])
+            expected_turn1_type = turn1["expected_response_type"]
+            if match.status != expected_turn1_type:
+                outcomes.append((
+                    case_id,
+                    f"turn 1: expected {expected_turn1_type!r}, got status={match.status!r}",
+                ))
+                continue
+
+            offered = [c.cpt_code for c in match.candidates]
+            expected_candidates = turn1.get("expected_candidate_cpt_codes")
+            if expected_candidates is not None and sorted(offered) != sorted(expected_candidates):
+                outcomes.append((
+                    case_id,
+                    f"turn 1 candidates: expected {sorted(expected_candidates)}, got {sorted(offered)}",
+                ))
+                continue
+
+            resolved = resolve_clarification(turn2["answer"], offered, match.clarifying_question)
+            expected_cpt = turn2.get("expected_cpt_code")
+            if resolved.status != "MATCHED" or resolved.cpt_code != expected_cpt:
+                outcomes.append((
+                    case_id,
+                    f"turn 2: expected MATCHED {expected_cpt!r}, "
+                    f"got status={resolved.status!r} cpt_code={resolved.cpt_code!r}",
+                ))
+                continue
+
+            result = estimate_member_cost(member_id, resolved.cpt_code, **audit_ctx)
+            result_dict = result.model_dump(mode="json")
+            results[case_id] = result_dict
+            _check_case({"id": case_id, **turn2}, result_dict, outcomes)
+
+        except Exception as exc:
+            outcomes.append((case_id, f"exception: {exc!r}"))
+
+    _check_must_differ(cases, results, outcomes)
+
+    return outcomes
 
 
 # --- live mode -----------------------------------------------------------
@@ -634,13 +740,21 @@ def main() -> int:
     parser.add_argument("--env", default="local")
     args = parser.parse_args()
 
-    demo_cases = yaml.safe_load((REPO_ROOT / "evals" / "demo_scripts.yaml").read_text())["cases"]
+    demo_scripts_doc = yaml.safe_load((REPO_ROOT / "evals" / "demo_scripts.yaml").read_text())
+    demo_cases = demo_scripts_doc["cases"]
+    multi_turn_cases = demo_scripts_doc.get("multi_turn_cases", [])
 
     all_passed = True
 
     if args.mode in ("deterministic", "both"):
         print(f"=== Deterministic mode ({args.env}) ===")
-        outcomes = run_deterministic(demo_cases)
+        # One shared results table: run_multi_turn's must_differ_from can
+        # point at a single-turn case (e.g. the cold twin), and this is what
+        # lets that cross-case check see both.
+        results: dict[str, dict] = {}
+        outcomes = run_deterministic(demo_cases, results)
+        if multi_turn_cases:
+            outcomes = outcomes + run_multi_turn(multi_turn_cases, results)
         for case_id, failure in outcomes:
             if failure is None:
                 print(f"  PASS  {case_id}")

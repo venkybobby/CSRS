@@ -428,5 +428,43 @@
       "member_cost": "530.00",
       "prior_auth_required": true
     }
+  },
+  "clarify-answered-knee": {
+    "case_id": "clarify_mri_then_knee_resolves_to_mri_knee",
+    "question": "knee",
+    "member_id": "M1001",
+    "date_of_service": null,
+    "asked_on": null,
+    "member": {
+      "name": "Alice Trevino",
+      "plan_id": "MER-SLV-2026",
+      "plan_display_name": "Meridian Silver 2026",
+      "tier": "INDIVIDUAL",
+      "status": "ACTIVE",
+      "coverage_start": "2026-01-01",
+      "coverage_end": null
+    },
+    "procedure": {
+      "cpt_code": "73721",
+      "common_name": "MRI Knee",
+      "negotiated_rate": "1150.00"
+    },
+    "clarification": null,
+    "breakdown": {
+      "negotiated_rate": "1150.00",
+      "deductible_individual": "1500.00",
+      "deductible_met_ytd": "0.00",
+      "deductible_remaining": "1500.00",
+      "applied_to_deductible": "1150.00",
+      "balance_after_deductible": "0.00",
+      "coinsurance_pct": "0.20",
+      "coinsurance_amount": "0.00",
+      "member_cost_before_cap": "1150.00",
+      "oop_remaining": "4000.00",
+      "oop_cap_triggered": false,
+      "triggering_threshold": "N/A",
+      "member_cost": "1150.00",
+      "prior_auth_required": false
+    }
   }
 }

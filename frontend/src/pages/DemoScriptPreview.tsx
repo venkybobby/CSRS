@@ -221,11 +221,29 @@ export function DemoScriptPreview() {
           ask={pane("preventive-zero-cost")}
           result={preventive}
         />
+      </div>
+
+      {/* The exchange, in the only arrangement that shows it as an exchange:
+          the question and its answer adjacent, the same way the Story 6 pair
+          above is the only arrangement in which "visually distinct" is
+          checkable. Turn 2's CPT is resolved by the real resolve_clarification
+          against the codes turn 1 offered, so these two panes cannot drift
+          into depicting a conversation that would not happen. */}
+      <div style={ROW}>
         <PreviewPane
           id="clarify-ambiguous-mri"
-          title="Ambiguous procedure — asks instead of choosing"
+          title="Turn 1 — ambiguous procedure, asks instead of choosing"
           ask={pane("clarify-ambiguous-mri")}
           result={clarifyAmbiguousMri}
+        />
+        <PreviewPane
+          id="clarify-answered-knee"
+          title="Turn 2 — the CSR answers, and it prices"
+          ask={pane("clarify-answered-knee")}
+          result={standardCost(
+            "clarify-answered-knee",
+            "f1d90b47-6c2e-4a83-95b1-0e7c34a8d612",
+          )}
         />
       </div>
     </div>

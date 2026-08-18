@@ -42,6 +42,30 @@ export function CostBreakdownTable({ result }: { result: StandardCostResult }) {
 
       <table className="breakdown-table">
         <tbody>
+          {/* What was priced, named, on every quote -- not only the ones that
+              happen to carry a banner.
+
+              This is the stated mitigation for the one risk the architecture
+              cannot remove: the model picks the procedure, so it can aim the
+              calculator at the wrong one, and the deck's answer to that is
+              that the rep is always confirming a named procedure rather than
+              reading an unlabelled number. That was true of the prior-auth,
+              exclusion, rate-not-found and preventive screens, all of which
+              name the procedure in their banner text -- and false of the
+              ordinary cost quote, which is the screen a CSR sees most. Until
+              this row existed a misrouted quote was wrong in secret unless
+              the procedure happened to need prior authorisation.
+
+              Rendered from the resolved procedure rather than from the CSR's
+              own words: echoing the query back would show that the question
+              was understood, which is exactly the thing in doubt. */}
+          <tr>
+            <th>Procedure priced</th>
+            <td>
+              {result.procedure.common_name ?? "—"}
+              {result.procedure.cpt_code ? ` (${result.procedure.cpt_code})` : ""}
+            </td>
+          </tr>
           <tr>
             <th>Negotiated rate</th>
             <td>{money(b.negotiated_rate)}</td>

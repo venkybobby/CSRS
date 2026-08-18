@@ -59,17 +59,33 @@ TYPE_DELAY_MS = 45
 # the screenshot capture selects them. Ordered as the steering deck runs:
 # a quote, the cap that beats mental arithmetic, the ambiguity question, then
 # the refusals.
+# Ordered to match the steering deck's own sequence -- an ordinary quote, the
+# case a rep gets wrong unaided, the client's own question answered as a
+# two-turn exchange, then the refusals, then the date pair. Holds are longer
+# than a reader needs because narration is laid over this afterwards and the
+# narrator needs room; see VIDEO_PLAN.md §5.
+#
+# The exchange (clarify-ambiguous-mri -> clarify-answered-knee) is why this
+# target can now stand in for a live recording. VIDEO_PLAN.md §3 recorded that
+# only a live agent could show turn-taking, which was true while turn 2 did
+# not exist as a fixture. It does now, resolved by the real
+# resolve_clarification, so the exchange is deterministic, free, and needs no
+# deployed environment.
 PREVIEW_SHOTS = [
-    ("?preview=demo", "demo-1-partial-deductible", 5.0),
-    ("?preview=demo", "demo-2-oop-cap", 6.0),
-    ("?preview=demo", "clarify-ambiguous-mri", 7.0),
-    ("?preview=demo", "demo-4-termed-block", 5.0),
-    ("?preview=demo", "exclusion-bronze", 5.0),
-    ("?preview=demo", "rate-not-found-silver", 5.0),
-    ("?preview=demo", "demo-5-honest-miss", 5.0),
-    ("?preview", "dated-yes", 5.0),
-    ("?preview", "dated-no", 7.0),
-    ("?preview", "prior-auth", 5.0),
+    ("?preview=demo", "demo-1-partial-deductible", 8.0),
+    ("?preview=demo", "demo-2-oop-cap", 9.0),
+    ("?preview=demo", "clarify-ambiguous-mri", 9.0),
+    ("?preview=demo", "clarify-answered-knee", 9.0),
+    ("?preview=demo", "demo-4-termed-block", 7.0),
+    ("?preview=demo", "exclusion-bronze", 7.0),
+    ("?preview=demo", "rate-not-found-silver", 7.0),
+    ("?preview=demo", "demo-5-honest-miss", 7.0),
+    ("?preview=demo", "preventive-zero-cost", 6.0),
+    ("?preview", "dated-yes", 7.0),
+    ("?preview", "dated-no", 9.0),
+    ("?preview", "plan-year-boundary", 7.0),
+    ("?preview", "past-date", 6.0),
+    ("?preview", "prior-auth", 8.0),
 ]
 
 

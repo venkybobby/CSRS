@@ -27,11 +27,15 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from generate_preview_fixtures import (  # noqa: E402
+    CLARIFICATION_ANSWER_PANES,
     OUTPUT_PATH,
     PANES_FROM_EVAL_CASES,
     STANDALONE_PANES,
     build_panes,
 )
+
+# Every pane must come from exactly one of the three declaration sites.
+ALL_DECLARED = set(PANES_FROM_EVAL_CASES) | set(STANDALONE_PANES) | set(CLARIFICATION_ANSWER_PANES)
 
 
 @pytest.fixture(scope="module")
@@ -73,9 +77,13 @@ def test_every_pane_is_declared_exactly_once(committed):
     last in build_panes(), so an eval-case-backed pane could end up rendering
     a hand-written question while still displaying that case's id.
     """
-    overlap = set(PANES_FROM_EVAL_CASES) & set(STANDALONE_PANES)
-    assert not overlap, f"panes declared twice: {sorted(overlap)}"
-    assert set(committed) == set(PANES_FROM_EVAL_CASES) | set(STANDALONE_PANES)
+    sites = (PANES_FROM_EVAL_CASES, STANDALONE_PANES, CLARIFICATION_ANSWER_PANES)
+    seen: set[str] = set()
+    for site in sites:
+        overlap = seen & set(site)
+        assert not overlap, f"panes declared twice: {sorted(overlap)}"
+        seen |= set(site)
+    assert set(committed) == ALL_DECLARED
 
 
 def test_eval_backed_panes_quote_their_case_verbatim(committed):
@@ -128,6 +136,32 @@ def test_standalone_panes_carry_no_borrowed_case_id(committed):
             f"{pane_id}: stamped {case_id!r}, but that case is about CPT "
             f"{case.get('expected_cpt_code')} and this pane shows {pane['procedure']['cpt_code']}"
         )
+
+
+def test_clarification_answer_pane_really_answers_its_turn_one(committed):
+    """Turn 2 must resolve to a code turn 1 actually offered.
+
+    The pane exists to show the exchange without a live agent, and the whole
+    value of that is that it depicts a real resolution. A turn 2 naming a CPT
+    that was never on the CSR's screen would be a staged conversation --
+    exactly the kind of illustration these fixtures exist not to be.
+    """
+    for pane_id, spec in CLARIFICATION_ANSWER_PANES.items():
+        turn_one = committed[spec["answers"]]
+        turn_two = committed[pane_id]
+
+        assert turn_one["clarification"] is not None, f"{spec['answers']} is not a turn 1"
+        offered = {c["cpt_code"] for c in turn_one["clarification"]["candidates"]}
+
+        assert turn_two["procedure"] is not None, f"{pane_id} resolved to nothing"
+        assert turn_two["procedure"]["cpt_code"] in offered, (
+            f"{pane_id} resolved to {turn_two['procedure']['cpt_code']}, which was not among the "
+            f"candidates turn 1 offered ({sorted(offered)})"
+        )
+        assert turn_two["member_id"] == turn_one["member_id"], (
+            f"{pane_id} prices a different member than the question it answers"
+        )
+        assert turn_two["question"] == spec["answer"]
 
 
 def test_priced_panes_price_only_what_the_plan_covers(committed):
