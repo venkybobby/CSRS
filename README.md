@@ -108,10 +108,10 @@ Being direct about this rather than claiming untested code works:
   came from a tool, and all of them had; the 18 deterministic cases passed identically before
   and after. `tests/unit/test_rate_sheet_source.py` is the only check that reads an artifact
   from outside the system. The post-deploy gate then passed **22/22** against Agent Engine
-  `reasoningEngines/2985492378028081152` (build `4439a4d5`), the first deploy carrying the
+  `reasoningEngines/<redacted>` (build `4439a4d5`), the first deploy carrying the
   corrected seed.
 - **Live verification against the deployed dev agent (2026-08-15)**: `run_eval.py --mode live`
-  passed **20/20** against Agent Engine `reasoningEngines/2344521079499784192` in `csrs-504922`
+  passed **20/20** against Agent Engine `reasoningEngines/<redacted>` in the project
   (`us-central1`) -- the 16 demo/regression cases plus all 4 adversarial cases, under a real
   model. This is the first run that establishes tool-call ORDER (eligibility before pricing) from
   the agent's own ADK session trace, which no offline test can show. The adversarial passes cover
@@ -129,7 +129,7 @@ Being direct about this rather than claiming untested code works:
   skip-and-report-success behaviour that let the post-deploy gate pass against any deployment at
   all. Client-facing summary: [docs/MVP1_STATUS.md](docs/MVP1_STATUS.md).
 - **`cloudbuild/pr-checks.yaml` is fully green end-to-end against a real GCP project**
-  (`csrs-504922`, build `1ae41168`, 9m35s): lint, typecheck, all 48 unit tests (including every
+  (the project, build `1ae41168`, 9m35s): lint, typecheck, all 48 unit tests (including every
   worked numeric example from the source spec M1001–M1010, the numeric-provenance guardrail's
   formatting-divergence and fabrication-detection cases, and IAP JWT verification), all 17
   integration tests against real Postgres, the deterministic eval suite (all 6 demo-script

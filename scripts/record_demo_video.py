@@ -18,9 +18,10 @@ scripts/build_demo_deck.py (press S in the deck to read it as one page).
 
 Target B consumes Reasoning Engine quota per question, from the same
 per-minute, per-region pool as CI's post-deploy eval gate. Recording while a
-deploy is in flight will fail one of them; check first:
+deploy is in flight will fail one of them; check first (source .env.ops
+first for $PROJECT_ID / $REGION):
 
-    gcloud builds list --ongoing --region=us-central1 --project=csrs-504922
+    gcloud builds list --ongoing --region=$REGION --project=$PROJECT_ID
 """
 
 from __future__ import annotations

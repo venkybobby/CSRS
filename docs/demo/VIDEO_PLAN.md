@@ -16,18 +16,18 @@ a recording session instead of before one.
 
 Verified 2026-08-16. **Do not copy an engine resource name out of this file.**
 Every deploy mints a new one and repoints the BFF, so any name written here is
-stale by the next merge — this paragraph named
-`reasoningEngines/2985492378028081152` for about an hour before a deploy
-replaced it with `6038932925385277440`. Read the live value instead:
+stale by the next merge — this paragraph named one specific engine resource
+for about an hour before a deploy replaced it with another. Read the live
+value instead (`source .env.ops` first):
 
 ```bash
-gcloud run services describe csrsupport-bff-dev --region=us-central1 \
-  --project=csrs-504922 --format=json \
+gcloud run services describe $BFF_SERVICE --region=$REGION \
+  --project=$PROJECT_ID --format=json \
   | python -c "import sys,json;[print(e.get('value')) for c in json.load(sys.stdin)['spec']['template']['spec']['containers'] for e in c.get('env',[]) if e['name']=='AGENT_ENGINE_RESOURCE_NAME']"
 ```
 
 **As of this revision the dev agent is unreachable regardless.** Vertex AI on
-`csrs-504922` returns `Lightning dunning decision is deny` project-wide — even
+this project returns `Lightning dunning decision is deny` project-wide — even
 a read on an existing engine 403s — so target B cannot be recorded at all
 until that is cleared. See [`../architecture/cost-controls.md`](../architecture/cost-controls.md).
 Target A is unaffected: it never touches the cloud.
@@ -155,10 +155,11 @@ form and records the real answers arriving.
   identical. Requires `DATABASE_URL` for the dev Supabase instance.
 
 ```bash
-# BFF, pointed at the deployed dev agent
+# BFF, pointed at the deployed dev agent -- source .env.ops first, and read
+# the engine name live (§1 above) rather than pasting one in, ever.
 DATABASE_URL=<from secret csrsupport-agent-engine-dev-db-url> \
-AGENT_ENGINE_RESOURCE_NAME=projects/375096314532/locations/us-central1/reasoningEngines/1676070786370109440 \
-GOOGLE_CLOUD_PROJECT=csrs-504922 GOOGLE_CLOUD_LOCATION=us-central1 \
+AGENT_ENGINE_RESOURCE_NAME=projects/$PROJECT_NUMBER/locations/$REGION/reasoningEngines/<live value, see §1> \
+GOOGLE_CLOUD_PROJECT=$PROJECT_ID GOOGLE_CLOUD_LOCATION=$REGION \
     uvicorn app.main:app --app-dir bff --port 8080
 
 # Frontend (proxies /api to the BFF)
@@ -274,7 +275,7 @@ Stated so the recording is not mistaken for completion:
 - The guardrail has not been watched firing in the real UI.
 - Only `dev` exists; staging and production do not, and forward audit-log
   partition creation is a prerequisite for staging.
-- Reasoning engines accumulate in `csrs-504922`, one per deploy since
+- Reasoning engines accumulate in this project, one per deploy since
   2026-08-09, with nothing reaping them. The count was 23 when this was
   written and has grown with every merge since; it was not re-counted for
   this revision, so treat it as a lower bound rather than a figure.

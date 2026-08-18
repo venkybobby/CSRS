@@ -17,6 +17,7 @@ dist/
 .env
 .env.*
 !.env.example
+!.env.ops.example
 *.key.json
 *-credentials.json
 *service-account*.json

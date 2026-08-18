@@ -82,7 +82,7 @@ Two things moved:
   (`clarify-answered-knee`), resolved by the real `resolve_clarification`
   against the codes turn 1 offered. The one thing that made a live recording
   necessary is deterministic and free.
-- **The dev agent is unreachable anyway.** Vertex AI on `csrs-504922` returns
+- **The dev agent is unreachable anyway.** Vertex AI on this project returns
   `Lightning dunning decision is deny` project-wide. See
   [`../architecture/cost-controls.md`](../architecture/cost-controls.md).
 
@@ -106,7 +106,7 @@ specific and a reviewer may check:
   **22/22 live** · 15/15 rates diffed against Meridian's workbook · 4/4
   adversarial repelled · **0 CSRs have used it**
 - The live number is observed, not forecast — build `4439a4d5`, engine
-  `2985492378028081152`, the first deploy carrying the corrected seed. It
+  `<redacted>`, the first deploy carrying the corrected seed. It
   becomes 24 on the next deployment, when the prior-auth pair joins it.
 - The deck's "what we are not claiming" slide volunteers **nine** gaps,
   including the rate drift we found ourselves and the annual-physical question

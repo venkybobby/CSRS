@@ -116,7 +116,7 @@ steps:
       - -f
       - bff/Dockerfile
       - -t
-      - "${_ARTIFACT_REGISTRY}/bff:pr-${_PR_NUMBER}"
+      - "us-central1-docker.pkg.dev/${PROJECT_ID}/csrsupport/bff:pr-${_PR_NUMBER}"
       - "."
 
   - id: build-frontend
@@ -126,7 +126,7 @@ steps:
       - -f
       - frontend/Dockerfile
       - -t
-      - "${_ARTIFACT_REGISTRY}/frontend:pr-${_PR_NUMBER}"
+      - "us-central1-docker.pkg.dev/${PROJECT_ID}/csrsupport/frontend:pr-${_PR_NUMBER}"
       - "frontend/"
 
   - id: build-migrate
@@ -136,12 +136,14 @@ steps:
       - -f
       - db/migrations/Dockerfile
       - -t
-      - "${_ARTIFACT_REGISTRY}/migrate:pr-${_PR_NUMBER}"
+      - "us-central1-docker.pkg.dev/${PROJECT_ID}/csrsupport/migrate:pr-${_PR_NUMBER}"
       - "."
 
+# _ARTIFACT_REGISTRY is gone -- $PROJECT_ID is a Cloud Build BUILT-IN (no
+# leading underscore), supplied automatically from whichever project the
+# build runs in. See cloudbuild/deploy.yaml's identical note.
 substitutions:
   _PR_NUMBER: "local"
-  _ARTIFACT_REGISTRY: "us-central1-docker.pkg.dev/csrs-504922/csrsupport"
 
 options:
   logging: CLOUD_LOGGING_ONLY

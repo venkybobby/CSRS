@@ -7,13 +7,13 @@ automates and what requires a human clicking through a browser once, because pre
 whole thing is `terraform apply` would be dishonest. Do this once per environment
 (dev/staging/prod are separate GCP projects, plan §6.1).
 
-**Live demo on `csrs-504922`:** this project is a standalone GCP project under a personal
-Google account — there is no GCP Organization. That changes two things everywhere below:
-VPC Service Controls / Access Context Manager (`infra/modules/vpc_sc`) is an org-level-only
-feature and stays **disabled** (`enable_vpc_sc = false`, the default); and the OAuth consent
-screen IAP depends on can only run in **Testing** publishing status (see §6.5), which is fine
-for a small named set of CSR test accounts and is what this runbook assumes. There's only one
-real project, so point `infra/envs/dev` at it (`project_id = "csrs-504922"` in
+**Live demo on the project named in `.env.ops` (`$PROJECT_ID`):** this project is a standalone
+GCP project under a personal Google account — there is no GCP Organization. That changes two
+things everywhere below: VPC Service Controls / Access Context Manager (`infra/modules/vpc_sc`)
+is an org-level-only feature and stays **disabled** (`enable_vpc_sc = false`, the default); and
+the OAuth consent screen IAP depends on can only run in **Testing** publishing status (see §6.5),
+which is fine for a small named set of CSR test accounts and is what this runbook assumes.
+There's only one real project, so point `infra/envs/dev` at it (`project_id = "$PROJECT_ID"` in
 `terraform.tfvars`) rather than standing up separate dev/staging/prod projects — staging/prod
 configs stay unapplied until additional GCP projects exist. §0 through §6.5 provision that one
 project end-to-end; §7 runs the 5 demo-script scenarios against it live.
@@ -121,7 +121,7 @@ outright against a bucket that doesn't exist yet. Create it once, before `init`:
 
 ```bash
 gcloud storage buckets create gs://csrsupport-dev-tfstate \
-    --project=csrs-504922 --location=us-central1 --uniform-bucket-level-access
+    --project=$PROJECT_ID --location=us-central1 --uniform-bucket-level-access
 gcloud storage buckets update gs://csrsupport-dev-tfstate --versioning
 ```
 Versioning isn't optional polish here — it's the only rollback path if a bad `apply` corrupts
@@ -171,9 +171,9 @@ found") if they don't already exist.
 
    ```bash
    echo -n "postgresql+pg8000://csrsupport_migrate.<project-ref>:<password>@aws-0-us-west-1.pooler.supabase.com:5432/postgres" | \
-       gcloud secrets create csrsupport-migrate-dev-db-url --project=csrs-504922 --data-file=-
+       gcloud secrets create csrsupport-migrate-dev-db-url --project=$PROJECT_ID --data-file=-
    echo -n "postgresql+pg8000://csrsupport_agent_engine.<project-ref>:<password>@aws-0-us-west-1.pooler.supabase.com:5432/postgres" | \
-       gcloud secrets create csrsupport-agent-engine-dev-db-url --project=csrs-504922 --data-file=-
+       gcloud secrets create csrsupport-agent-engine-dev-db-url --project=$PROJECT_ID --data-file=-
    ```
 
    Set `migrate_db_url_secret_id = "csrsupport-migrate-dev-db-url"` and
@@ -189,7 +189,7 @@ cd infra/envs/dev
 cp terraform.tfvars.example terraform.tfvars
 # fill in every value, including steps 1-2's outputs, AND override project_id/region for the
 # standalone project:
-#   project_id = "csrs-504922"
+#   project_id = "$PROJECT_ID"
 terraform init
 terraform plan     # review — creates real, billed resources including two service accounts
                     # holding elevated IAM (sa-cicd-build, sa-migrate)
@@ -211,7 +211,7 @@ Run requirement that an image already exist — `cloudbuild/deploy.yaml` overwri
 real images on the first CI/CD deploy run.
 
 VPC-SC stays off (`enable_vpc_sc` defaults `false`) — leave `terraform.tfvars` alone on that
-var unless `csrs-504922` later joins a GCP Organization.
+var unless this project later joins a GCP Organization.
 
 **No VPC/networking module for dev.** `infra/modules/networking` (VPC, subnet, private-services
 peering, Serverless VPC Access connector) and `infra/modules/cloud_sql` existed solely to give
@@ -289,7 +289,7 @@ from the `csr_access` end-user IAM binding above) needs to exist before it can i
 Cloud Run services on an authenticated user's behalf:
 
 ```bash
-gcloud beta services identity create --service=iap.googleapis.com --project=csrs-504922
+gcloud beta services identity create --service=iap.googleapis.com --project=$PROJECT_ID
 ```
 
 Not Terraform-manageable (a Google-managed service identity, not a project resource) and not
