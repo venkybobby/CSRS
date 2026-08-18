@@ -137,7 +137,7 @@ STANDALONE_PANES = {
 # `case` names the eval case in evals/demo_scripts.yaml's `multi_turn_cases:`
 # block that this pane depicts -- evals/run_eval.py::run_multi_turn() runs
 # exactly this exchange (same question, same answer, same member) and gates
-# it against a cold twin (cold_knee_alone_needs_clarification: "knee" asked
+# it against a cold twin (knee_without_pending_clarification_refuses: "knee" asked
 # with no pending turn 1 must NOT resolve). The pane used to carry
 # case_id=None and render an honest "no eval case" stamp, because
 # demo_scripts.yaml's `cases:` are single-question and none of them covered a

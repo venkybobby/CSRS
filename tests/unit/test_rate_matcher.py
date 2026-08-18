@@ -279,7 +279,7 @@ def test_clarification_answer_resolves_to_knee(catalog):
     `clarify_mri_then_knee_resolves_to_mri_knee` in
     evals/demo_scripts.yaml's `multi_turn_cases:` block, run by
     evals/run_eval.py::run_multi_turn() and paired with a cold-twin negative
-    control (cold_knee_alone_needs_clarification: "knee" asked cold, with no
+    control (knee_without_pending_clarification_refuses: "knee" asked cold, with no
     turn 1, must NOT resolve to MRI Knee). Kept here too because it is
     faster and needs no yaml, and because unit-level coverage of
     resolve_clarification should not depend on the eval file's shape.
